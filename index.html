@@ -24,7 +24,53 @@
             animation: fadeIn 0.8s ease-out;
         }
 
-        h1 { text-align: center; color: #ffffff; letter-spacing: 1px; }
+        /* Header Bereich mit Titeln & Buttons */
+        .header-box {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        h1 { 
+            text-align: center; 
+            color: #ffffff; 
+            letter-spacing: 1px; 
+            margin: 0;
+        }
+
+        .header-buttons {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .btn-header {
+            background: #252525;
+            color: #fff;
+            border: 2px solid #3498db;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s ease;
+        }
+
+        .btn-header:hover {
+            background: #3498db;
+            color: #fff;
+        }
+
+        .btn-header-yellow {
+            border-color: #f1c40f;
+        }
+        .btn-header-yellow:hover {
+            background: #f1c40f;
+            color: #121212;
+        }
 
         table { 
             width: 100%; 
@@ -175,6 +221,11 @@
         }
         .btn-submit:hover { background: #27ae60; }
 
+        .btn-danger {
+            background: #e74c3c;
+        }
+        .btn-danger:hover { background: #c0392b; }
+
         .google-btn {
             width: 100%;
             background: #ffffff;
@@ -233,24 +284,42 @@
         }
         .owner-title { color: #2ecc71; font-weight: bold; font-size: 0.8rem; }
 
-        .btn-reply {
-            background: #2ecc71;
-            color: #fff;
+        .action-btns-card {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .btn-card-action {
             border: none;
-            padding: 4px 10px;
+            padding: 5px 12px;
             border-radius: 4px;
             cursor: pointer;
             font-weight: bold;
             font-size: 0.8rem;
-            margin-top: 8px;
         }
-        .btn-reply:hover { background: #27ae60; }
+        .btn-reply-act { background: #2ecc71; color: #fff; }
+        .btn-reply-act:hover { background: #27ae60; }
+        .btn-delete-act { background: #e74c3c; color: #fff; }
+        .btn-delete-act:hover { background: #c0392b; }
+
+        .confirm-btns {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <h1>TRUESIMMODS - OFFICIAL MOD LIST</h1>
+        <div class="header-box">
+            <h1>TRUESIMMODS - OFFICIAL MOD LIST</h1>
+            <div class="header-buttons">
+                <button id="authHeaderBtn" class="btn-header" onclick="handleAuthClick()">🔑 Anmelden</button>
+                <button class="btn-header btn-header-yellow" onclick="scrollToRankings()">📜 Rankings & Update-Liste</button>
+            </div>
+        </div>
 
         <table>
             <thead>
@@ -308,10 +377,10 @@
         </div>
 
         <!-- COMMUNITY FEEDBACK LISTE -->
-        <div class="feedback-section">
+        <div class="feedback-section" id="rankingsSection">
             <h2>COMMUNITY FEEDBACK & UPDATE-IDEEN</h2>
             <div id="feedbackContainer">
-                <!-- Neue Einträge werden hier automatisch hinzugefügt -->
+                <!-- Einträge werden hier dynamisch aus dem Speicher geladen -->
             </div>
         </div>
     </div>
@@ -342,7 +411,7 @@
             <p style="margin: 5px 0; font-size: 0.9rem; color: #aaa;" id="inputLabel">Deine Bewertung / Nachricht:</p>
             <textarea id="userText" placeholder="Schreibe hier deinen Text..."></textarea>
 
-            <button class="btn-submit" onclick="goToLogin()">Weiter zum Absenden</button>
+            <button class="btn-submit" onclick="submitFeedback()">Absenden</button>
         </div>
     </div>
 
@@ -364,7 +433,19 @@
             <input type="email" id="emailInput" placeholder="E-Mail-Adresse">
             <input type="password" id="passwordInput" placeholder="Passwort">
 
-            <button class="btn-submit" onclick="finishSubmission()">Anmelden & Absenden</button>
+            <button class="btn-submit" onclick="performLogin()">Anmelden</button>
+        </div>
+    </div>
+
+    <!-- 3. POP-UP MODAL: ABMELDEN BESTÄTIGUNG -->
+    <div id="logoutModal" class="modal">
+        <div class="modal-content">
+            <h3 style="margin-top:0; text-align:center;">Abmelden?</h3>
+            <p style="text-align:center; color:#ccc;">Bist du dir sicher, dass du dich abmelden willst?</p>
+            <div class="confirm-btns">
+                <button class="btn-submit btn-danger" onclick="confirmLogout()">Ja, abmelden</button>
+                <button class="btn-submit" onclick="closeModal('logoutModal')">Nein, bleiben</button>
+            </div>
         </div>
     </div>
 
@@ -372,8 +453,57 @@
         let selectedMod = '';
         let currentTab = 'ranking';
         let currentRating = 0;
-        let savedText = '';
-        let isOwner = false;
+        
+        // Globale User-Variablen
+        let currentUser = localStorage.getItem('truesim_user') || null;
+        let isOwner = localStorage.getItem('truesim_isOwner') === 'true';
+
+        // Blockierte Schimpfwörter (Bad Words)
+        const badWords = [
+            "hurensohn", "arschloch", "bastard", "wichser", "schlampe", 
+            "pisser", "fotze", "hure", "spast", "idiot", "spacko"
+        ];
+
+        // Speicher-Array für alle Rankings/Ideen
+        let feedbackList = JSON.parse(localStorage.getItem('truesim_feedbacks')) || [];
+
+        // Beim Laden der Seite
+        window.onload = function() {
+            updateAuthHeaderUI();
+            renderFeedbacks();
+        };
+
+        function scrollToRankings() {
+            document.getElementById('rankingsSection').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function updateAuthHeaderUI() {
+            let btn = document.getElementById('authHeaderBtn');
+            if (currentUser) {
+                btn.innerText = '🚪 Abmelden (' + currentUser + ')';
+            } else {
+                btn.innerText = '🔑 Anmelden';
+            }
+        }
+
+        function handleAuthClick() {
+            if (currentUser) {
+                document.getElementById('logoutModal').style.display = 'flex';
+            } else {
+                document.getElementById('loginModal').style.display = 'flex';
+            }
+        }
+
+        function confirmLogout() {
+            currentUser = null;
+            isOwner = false;
+            localStorage.removeItem('truesim_user');
+            localStorage.removeItem('truesim_isOwner');
+            updateAuthHeaderUI();
+            renderFeedbacks();
+            closeModal('logoutModal');
+            alert('Du hast dich erfolgreich abgemeldet!');
+        }
 
         function openModal(modName) {
             selectedMod = modName;
@@ -412,95 +542,173 @@
             }
         }
 
-        function goToLogin() {
-            savedText = document.getElementById('userText').value;
-            if(!savedText) {
-                alert('Bitte gib zuerst eine Nachricht oder Bewertung ein!');
+        function submitFeedback() {
+            if (!currentUser) {
+                alert('Du musst dich erst anmelden, um Feedback oder eine Update-Idee abzusenden!');
+                closeModal('feedbackModal');
+                document.getElementById('loginModal').style.display = 'flex';
                 return;
             }
+
+            let text = document.getElementById('userText').value.trim();
+            if(!text) {
+                alert('Bitte gib zuerst eine Nachricht ein!');
+                return;
+            }
+
+            // SCHIMPFZWORT PRÜFUNG
+            let lowerText = text.toLowerCase();
+            let containsBadWord = badWords.some(word => lowerText.includes(word));
+            if (containsBadWord) {
+                alert('Dein Beitrag enthält unangebrachte Worte und wurde abgelehnt! Bitte bleibe höflich.');
+                document.getElementById('userText').value = '';
+                return;
+            }
+
             if(currentTab === 'ranking' && currentRating === 0) {
                 alert('Bitte wähle eine Sternebewertung (1 bis 5)!');
                 return;
             }
 
+            let newItem = {
+                id: Date.now(),
+                user: currentUser,
+                type: currentTab,
+                mod: selectedMod,
+                rating: currentRating,
+                text: text,
+                ownerReply: null
+            };
+
+            feedbackList.unshift(newItem);
+            saveFeedbacks();
+            renderFeedbacks();
+
+            // Formular zurücksetzen
+            document.getElementById('userText').value = '';
+            setRating(0);
             closeModal('feedbackModal');
-            document.getElementById('loginModal').style.display = 'flex';
+
+            alert('Erfolgreich abgesendet!');
+            scrollToRankings();
         }
 
         function googleLogin() {
-            let username = prompt("Willkommen! Welchen Usernamen möchtest du nutzen?", "@ModFan");
-            if(username) {
-                document.getElementById('usernameInput').value = username;
-                finishSubmission();
+            let name = prompt("Willkommen! Welchen Usernamen möchtest du nutzen?", "@ModFan");
+            if(name) {
+                if(!name.startsWith('@')) name = '@' + name;
+                saveLogin(name, false);
             }
         }
 
-        function finishSubmission() {
+        function performLogin() {
             let email = document.getElementById('emailInput').value.trim();
             let password = document.getElementById('passwordInput').value.trim();
             let username = document.getElementById('usernameInput').value.trim();
 
-            // EXAKTE OWNER PRÜFUNG (1 zu 1)
             if (email === "leon8282882@icloud.com" && password === "Smyczek123@") {
-                isOwner = true;
-                username = "@TrueSimMods (Owner)";
+                saveLogin("@TrueSimMods (Owner)", true);
             } else {
-                if(!username) {
-                    alert('Bitte wähle einen Usernamen!');
+                if (!username) {
+                    alert('Bitte gib deinen Usernamen ein!');
                     return;
                 }
-                if(!username.startsWith('@')) {
-                    username = '@' + username;
-                }
+                if(!username.startsWith('@')) username = '@' + username;
+                saveLogin(username, false);
             }
-
-            // Neuen Block erstellen
-            let container = document.getElementById('feedbackContainer');
-            let newCard = document.createElement('div');
-            newCard.className = 'feedback-card';
-
-            let typeText = (currentTab === 'ranking') 
-                ? `⭐ ${currentRating}/5 Sternen (${selectedMod})` 
-                : `💡 Update-Idee (${selectedMod})`;
-
-            let replyButtonHTML = isOwner ? `<button class="btn-reply" onclick="replyToFeedback(this)">Antworten</button>` : '';
-
-            newCard.innerHTML = `
-                <div class="feedback-header">
-                    <span class="feedback-user">${username}</span>
-                    <span class="feedback-type">${typeText}</span>
-                </div>
-                <p style="margin: 5px 0; color: #ddd;">${savedText}</p>
-                ${replyButtonHTML}
-                <div class="reply-container"></div>
-            `;
-
-            container.prepend(newCard);
-
-            alert('Erfolgreich abgesendet!');
-            
-            // Felder zurücksetzen
-            document.getElementById('userText').value = '';
-            document.getElementById('usernameInput').value = '';
-            document.getElementById('emailInput').value = '';
-            document.getElementById('passwordInput').value = '';
-            setRating(0);
-
-            closeModal('loginModal');
         }
 
-        function replyToFeedback(button) {
+        function saveLogin(username, ownerFlag) {
+            currentUser = username;
+            isOwner = ownerFlag;
+            localStorage.setItem('truesim_user', currentUser);
+            localStorage.setItem('truesim_isOwner', isOwner);
+
+            // Felder zurücksetzen
+            document.getElementById('emailInput').value = '';
+            document.getElementById('passwordInput').value = '';
+            document.getElementById('usernameInput').value = '';
+
+            updateAuthHeaderUI();
+            renderFeedbacks();
+            closeModal('loginModal');
+            alert('Willkommen zurück, ' + currentUser + '!');
+        }
+
+        function replyToFeedback(id) {
             let replyText = prompt("Deine Antwort als Owner:");
             if (replyText) {
-                let card = button.closest('.feedback-card');
-                let replyContainer = card.querySelector('.reply-container');
-                replyContainer.innerHTML = `
+                let item = feedbackList.find(f => f.id === id);
+                if (item) {
+                    item.ownerReply = replyText;
+                    saveFeedbacks();
+                    renderFeedbacks();
+                }
+            }
+        }
+
+        function deleteFeedback(id) {
+            if (confirm("Möchtest du diesen Eintrag wirklich löschen?")) {
+                feedbackList = feedbackList.filter(f => f.id !== id);
+                saveFeedbacks();
+                renderFeedbacks();
+            }
+        }
+
+        function saveFeedbacks() {
+            localStorage.setItem('truesim_feedbacks', JSON.stringify(feedbackList));
+        }
+
+        function renderFeedbacks() {
+            let container = document.getElementById('feedbackContainer');
+            container.innerHTML = '';
+
+            if (feedbackList.length === 0) {
+                container.innerHTML = '<p style="color: #777;">Noch keine Bewertungen oder Update-Ideen vorhanden. Sei der Erste!</p>';
+                return;
+            }
+
+            feedbackList.forEach(item => {
+                let card = document.createElement('div');
+                card.className = 'feedback-card';
+
+                let typeText = (item.type === 'ranking') 
+                    ? `⭐ ${item.rating}/5 Sternen (${item.mod})` 
+                    : `💡 Update-Idee (${item.mod})`;
+
+                // Buttons vorbereiten
+                let replyBtn = (isOwner && !item.ownerReply) 
+                    ? `<button class="btn-card-action btn-reply-act" onclick="replyToFeedback(${item.id})">💬 Antworten</button>` 
+                    : '';
+
+                // Löschen Button (Wenn man der Ersteller ist ODER wenn man Owner ist)
+                let canDelete = isOwner || (currentUser === item.user);
+                let deleteBtn = canDelete 
+                    ? `<button class="btn-card-action btn-delete-act" onclick="deleteFeedback(${item.id})">🗑️ Löschen</button>` 
+                    : '';
+
+                let ownerReplyHTML = item.ownerReply ? `
                     <div class="owner-reply">
                         <div class="owner-title">Antwort von TrueSimMods (Owner):</div>
-                        ${replyText}
+                        ${item.ownerReply}
+                    </div>
+                ` : '';
+
+                card.innerHTML = `
+                    <div class="feedback-header">
+                        <span class="feedback-user">${item.user}</span>
+                        <span class="feedback-type">${typeText}</span>
+                    </div>
+                    <p style="margin: 5px 0; color: #ddd;">${item.text}</p>
+                    ${ownerReplyHTML}
+                    <div class="action-btns-card">
+                        ${replyBtn}
+                        ${deleteBtn}
                     </div>
                 `;
-            }
+
+                container.appendChild(card);
+            });
         }
     </script>
 </body>
