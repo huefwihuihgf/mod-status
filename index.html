@@ -197,7 +197,6 @@
             color: #777;
             margin: 15px 0;
             font-size: 0.85rem;
-            position: relative;
         }
 
         /* Feedback Section */
@@ -211,6 +210,7 @@
             padding: 15px;
             margin-bottom: 15px;
             border-left: 4px solid #f1c40f;
+            position: relative;
         }
 
         .feedback-header {
@@ -232,6 +232,19 @@
             font-size: 0.9rem;
         }
         .owner-title { color: #2ecc71; font-weight: bold; font-size: 0.8rem; }
+
+        .btn-reply {
+            background: #2ecc71;
+            color: #fff;
+            border: none;
+            padding: 4px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.8rem;
+            margin-top: 8px;
+        }
+        .btn-reply:hover { background: #27ae60; }
     </style>
 </head>
 <body>
@@ -269,7 +282,6 @@
                     <td><span class="status-private">NOT PUBLIC (Offline)</span></td>
                     <td>
                         <span class="btn-disabled">Offline</span>
-                        <!-- Kein Rank-Button bei Offline Mods -->
                     </td>
                 </tr>
             </tbody>
@@ -298,30 +310,8 @@
         <!-- COMMUNITY FEEDBACK LISTE -->
         <div class="feedback-section">
             <h2>COMMUNITY FEEDBACK & UPDATE-IDEEN</h2>
-
             <div id="feedbackContainer">
-                <!-- Beispiel-Block 1 -->
-                <div class="feedback-card">
-                    <div class="feedback-header">
-                        <span class="feedback-user">@TrainFan_2026</span>
-                        <span class="feedback-type">⭐ 5/5 Sternen (Ansagen Mod)</span>
-                    </div>
-                    <p style="margin: 5px 0; color: #ddd;">Richtig cooler Mod! Die Durchsagen klingen mega realistisch.</p>
-                    
-                    <div class="owner-reply">
-                        <div class="owner-title">Antwort von TrueSimMods (Owner):</div>
-                        Danke dir! Das nächste Update mit Raumecho kommt schon bald!
-                    </div>
-                </div>
-
-                <!-- Beispiel-Block 2 -->
-                <div class="feedback-card">
-                    <div class="feedback-header">
-                        <span class="feedback-user">@ZugFreak_DE</span>
-                        <span class="feedback-type">💡 Update-Idee (Funk Mod)</span>
-                    </div>
-                    <p style="margin: 5px 0; color: #ddd;">Kannst du vielleicht noch Rangierfunk-Durchsagen hinzufügen?</p>
-                </div>
+                <!-- Neue Einträge werden hier automatisch hinzugefügt -->
             </div>
         </div>
     </div>
@@ -370,9 +360,9 @@
 
             <div class="login-divider">ODER MIT E-MAIL</div>
 
-            <input type="text" id="usernameInput" placeholder="Dein Wunsch-Username (z. B. @TrainFan)" required>
-            <input type="email" id="emailInput" placeholder="E-Mail-Adresse" required>
-            <input type="password" id="passwordInput" placeholder="Passwort" required>
+            <input type="text" id="usernameInput" placeholder="Dein Wunsch-Username (z. B. @TrainFan)">
+            <input type="email" id="emailInput" placeholder="E-Mail-Adresse">
+            <input type="password" id="passwordInput" placeholder="Passwort">
 
             <button class="btn-submit" onclick="finishSubmission()">Anmelden & Absenden</button>
         </div>
@@ -383,6 +373,7 @@
         let currentTab = 'ranking';
         let currentRating = 0;
         let savedText = '';
+        let isOwner = false;
 
         function openModal(modName) {
             selectedMod = modName;
@@ -445,17 +436,25 @@
         }
 
         function finishSubmission() {
-            let username = document.getElementById('usernameInput').value;
-            if(!username) {
-                alert('Bitte wähle einen Usernamen!');
-                return;
+            let email = document.getElementById('emailInput').value.trim();
+            let password = document.getElementById('passwordInput').value.trim();
+            let username = document.getElementById('usernameInput').value.trim();
+
+            // EXAKTE OWNER PRÜFUNG (1 zu 1)
+            if (email === "leon8282882@icloud.com" && password === "Smyczek123@") {
+                isOwner = true;
+                username = "@TrueSimMods (Owner)";
+            } else {
+                if(!username) {
+                    alert('Bitte wähle einen Usernamen!');
+                    return;
+                }
+                if(!username.startsWith('@')) {
+                    username = '@' + username;
+                }
             }
 
-            if(!username.startsWith('@')) {
-                username = '@' + username;
-            }
-
-            // Neuen Block erstellen und oben einfügen
+            // Neuen Block erstellen
             let container = document.getElementById('feedbackContainer');
             let newCard = document.createElement('div');
             newCard.className = 'feedback-card';
@@ -464,12 +463,16 @@
                 ? `⭐ ${currentRating}/5 Sternen (${selectedMod})` 
                 : `💡 Update-Idee (${selectedMod})`;
 
+            let replyButtonHTML = isOwner ? `<button class="btn-reply" onclick="replyToFeedback(this)">Antworten</button>` : '';
+
             newCard.innerHTML = `
                 <div class="feedback-header">
                     <span class="feedback-user">${username}</span>
                     <span class="feedback-type">${typeText}</span>
                 </div>
                 <p style="margin: 5px 0; color: #ddd;">${savedText}</p>
+                ${replyButtonHTML}
+                <div class="reply-container"></div>
             `;
 
             container.prepend(newCard);
@@ -484,6 +487,20 @@
             setRating(0);
 
             closeModal('loginModal');
+        }
+
+        function replyToFeedback(button) {
+            let replyText = prompt("Deine Antwort als Owner:");
+            if (replyText) {
+                let card = button.closest('.feedback-card');
+                let replyContainer = card.querySelector('.reply-container');
+                replyContainer.innerHTML = `
+                    <div class="owner-reply">
+                        <div class="owner-title">Antwort von TrueSimMods (Owner):</div>
+                        ${replyText}
+                    </div>
+                `;
+            }
         }
     </script>
 </body>
