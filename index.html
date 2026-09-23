@@ -19,7 +19,7 @@
             transition: filter 0.3s ease;
         }
 
-        /* Verschwommener Hintergrund wenn Start-Warnung aktiv ist */
+        /* Verschwommener Hintergrund wenn ein Start-/Download-Pop-up aktiv ist */
         body.blurred .container {
             filter: blur(8px);
             pointer-events: none;
@@ -95,7 +95,7 @@
         .status-public { color: #2ecc71; font-weight: bold; }
         .status-private { color: #e74c3c; font-weight: bold; }
 
-        .btn-link { background: #3498db; color: white; padding: 6px 14px; text-decoration: none; border-radius: 4px; font-weight: bold; display: inline-block; margin-bottom: 6px; }
+        .btn-link { background: #3498db; color: white; padding: 6px 14px; text-decoration: none; border-radius: 4px; font-weight: bold; display: inline-block; margin-bottom: 6px; cursor: pointer; }
         .btn-link:hover { background: #2980b9; }
         .btn-disabled { background: #444; color: #888; padding: 6px 14px; text-decoration: none; border-radius: 4px; cursor: not-allowed; display: inline-block; margin-bottom: 6px; }
 
@@ -350,7 +350,7 @@
                     <td>Ansagen Mod</td>
                     <td><span class="status-public">PUBLIC (Online)</span></td>
                     <td>
-                        <a href="https://drive.google.com/uc?export=download&id=1dtoEtKaLqN34_KP19eFmymhKLdCts5M5" class="btn-link" target="_blank">Download</a><br>
+                        <button class="btn-link" onclick="startDownloadNotice('https://drive.google.com/uc?export=download&id=1dtoEtKaLqN34_KP19eFmymhKLdCts5M5')">Download</button><br>
                         <button class="btn-rank" onclick="openModal('Ansagen Mod')">⭐ Bewerten / Idee</button>
                     </td>
                 </tr>
@@ -358,7 +358,7 @@
                     <td>Funk Mod</td>
                     <td><span class="status-public">PUBLIC (Online)</span></td>
                     <td>
-                        <a href="https://drive.google.com/uc?export=download&id=1uqGvL0FJ-fMftr0Kbj8fRF58SBprcv92" class="btn-link" target="_blank">Download</a><br>
+                        <button class="btn-link" onclick="startDownloadNotice('https://drive.google.com/uc?export=download&id=1uqGvL0FJ-fMftr0Kbj8fRF58SBprcv92')">Download</button><br>
                         <button class="btn-rank" onclick="openModal('Funk Mod')">⭐ Bewerten / Idee</button>
                     </td>
                 </tr>
@@ -424,6 +424,22 @@
                 <li>Unter <strong>Allgemein</strong> ganz unten bei <strong>STARTOPTIONEN</strong> folgendes eintragen: <code>-HTTPAPI</code></li>
             </ol>
             <button id="noticeOkBtn" class="btn-submit" disabled onclick="closeNoticeAndScroll()">Bitte lesen... (3s)</button>
+        </div>
+    </div>
+
+    <!-- 0.5 POP-UP MODAL: DOWNLOAD HINWEIS (SMART APP CONTROL) -->
+    <div id="downloadNoticeModal" class="modal">
+        <div class="modal-content" style="border-left: 6px solid #3498db;">
+            <h3 style="margin-top:0; color:#3498db;">Danke für den Download! ❤️</h3>
+            <p style="color: #ffffff; font-size: 0.9rem; line-height: 1.5; margin-bottom: 10px;">
+                <strong>Wichtiger Hinweis zur Installation:</strong><br>
+                Meine Dateien sind zu 100 % sicher und <u>keine Malware</u>. Falls Windows (Smart App Control) oder dein Virenscanner die <code>.exe</code> blockiert oder falsche Warnungen (False Positive) anzeigt:
+            </p>
+            <ul style="color: #dddddd; font-size: 0.85rem; padding-left: 18px; margin: 0 0 15px 0; line-height: 1.5;">
+                <li><strong>Smart App Control ausschalten:</strong> Suche in Windows nach <em>"Smart App Control"</em> und schalte es aus.</li>
+                <li><strong>Unsicher bei VirusTotal?</strong> Zeige die VirusTotal-Ergebnisse z. B. ChatGPT. Die KI wird dir bestätigen, dass es sich um ein Falschsignal handelt.</li>
+            </ul>
+            <button id="downloadOkBtn" class="btn-submit" disabled onclick="executePendingDownload()">Download starten... (3s)</button>
         </div>
     </div>
 
@@ -495,6 +511,7 @@
         let selectedMod = '';
         let currentTab = 'ranking';
         let currentRating = 0;
+        let pendingDownloadUrl = '';
         
         // Globale User-Variablen
         let currentUser = localStorage.getItem('truesim_user') || null;
@@ -518,7 +535,6 @@
         };
 
         function checkAndShowStartNotice() {
-            // Wenn man Gast ist (nicht angemeldet) ODER angemeldet ist und es noch nie gesehen hat
             if (!currentUser || (!hasSeenNotice && currentUser)) {
                 document.body.classList.add('blurred');
                 let noticeModal = document.getElementById('startNoticeModal');
@@ -545,13 +561,41 @@
             document.body.classList.remove('blurred');
             document.getElementById('startNoticeModal').style.display = 'none';
 
-            // Wenn der Nutzer angemeldet ist, merken wir uns, dass er die Warnung gesehen hat
             if (currentUser) {
                 localStorage.setItem('truesim_seenNotice', 'true');
             }
 
-            // Automatisch zur Hinweisseite unten scrollen
             document.getElementById('warningNoticeSection').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function startDownloadNotice(url) {
+            pendingDownloadUrl = url;
+            document.body.classList.add('blurred');
+            let dlModal = document.getElementById('downloadNoticeModal');
+            dlModal.style.display = 'flex';
+
+            let btn = document.getElementById('downloadOkBtn');
+            btn.disabled = true;
+            let timeLeft = 3;
+
+            let timer = setInterval(() => {
+                timeLeft--;
+                if (timeLeft > 0) {
+                    btn.innerText = `Download starten... (${timeLeft}s)`;
+                } else {
+                    clearInterval(timer);
+                    btn.disabled = false;
+                    btn.innerText = 'Verstanden & Download starten';
+                }
+            }, 1000);
+        }
+
+        function executePendingDownload() {
+            document.body.classList.remove('blurred');
+            document.getElementById('downloadNoticeModal').style.display = 'none';
+            if (pendingDownloadUrl) {
+                window.open(pendingDownloadUrl, '_blank');
+            }
         }
 
         function scrollToRankings() {
@@ -638,7 +682,6 @@
                 return;
             }
 
-            // SCHIMPFZWORT PRÜFUNG
             let lowerText = text.toLowerCase();
             let containsBadWord = badWords.some(word => lowerText.includes(word));
             if (containsBadWord) {
@@ -666,7 +709,6 @@
             saveFeedbacks();
             renderFeedbacks();
 
-            // Formular zurücksetzen
             document.getElementById('userText').value = '';
             setRating(0);
             closeModal('feedbackModal');
@@ -706,7 +748,6 @@
             localStorage.setItem('truesim_user', currentUser);
             localStorage.setItem('truesim_isOwner', isOwner);
 
-            // Felder zurücksetzen
             document.getElementById('emailInput').value = '';
             document.getElementById('passwordInput').value = '';
             document.getElementById('usernameInput').value = '';
@@ -758,12 +799,10 @@
                     ? `⭐ ${item.rating}/5 Sternen (${item.mod})` 
                     : `💡 Update-Idee (${item.mod})`;
 
-                // Buttons vorbereiten
                 let replyBtn = (isOwner && !item.ownerReply) 
                     ? `<button class="btn-card-action btn-reply-act" onclick="replyToFeedback(${item.id})">💬 Antworten</button>` 
                     : '';
 
-                // Löschen Button (Wenn man der Ersteller ist ODER wenn man Owner ist)
                 let canDelete = isOwner || (currentUser === item.user);
                 let deleteBtn = canDelete 
                     ? `<button class="btn-card-action btn-delete-act" onclick="deleteFeedback(${item.id})">🗑️ Löschen</button>` 
