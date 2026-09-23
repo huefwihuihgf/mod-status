@@ -89,7 +89,7 @@
             z-index: 1000; 
             left: 0; top: 0; 
             width: 100%; height: 100%; 
-            background-color: rgba(0,0,0,0.8);
+            background-color: rgba(0,0,0,0.85);
             justify-content: center;
             align-items: center;
         }
@@ -99,8 +99,8 @@
             padding: 25px;
             border-radius: 10px;
             width: 90%;
-            max-width: 450px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            max-width: 420px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.6);
             position: relative;
         }
 
@@ -148,24 +148,25 @@
             color: #f1c40f;
         }
 
-        textarea {
+        textarea, input[type="text"], input[type="email"], input[type="password"] {
             width: 100%;
-            height: 80px;
             background: #121212;
             border: 1px solid #333;
             color: #fff;
             padding: 10px;
             border-radius: 6px;
             box-sizing: border-box;
-            resize: none;
-            margin-bottom: 15px;
+            margin-bottom: 12px;
+            font-family: inherit;
         }
+
+        textarea { height: 80px; resize: none; }
 
         .btn-submit {
             width: 100%;
             background: #2ecc71;
             color: #fff;
-            padding: 10px;
+            padding: 11px;
             border: none;
             border-radius: 6px;
             font-weight: bold;
@@ -174,7 +175,32 @@
         }
         .btn-submit:hover { background: #27ae60; }
 
-        /* Öffentliche Liste der Feedbacks */
+        .google-btn {
+            width: 100%;
+            background: #ffffff;
+            color: #121212;
+            padding: 10px;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .google-btn:hover { background: #eee; }
+
+        .login-divider {
+            text-align: center;
+            color: #777;
+            margin: 15px 0;
+            font-size: 0.85rem;
+            position: relative;
+        }
+
+        /* Feedback Section */
         .feedback-section {
             margin-top: 40px;
         }
@@ -196,6 +222,7 @@
 
         .feedback-user { color: #3498db; }
         .feedback-type { background: #333; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; }
+        
         .owner-reply {
             margin-top: 10px;
             padding: 10px;
@@ -241,8 +268,8 @@
                     <td>Engine.ini besser</td>
                     <td><span class="status-private">NOT PUBLIC (Offline)</span></td>
                     <td>
-                        <span class="btn-disabled">Offline</span><br>
-                        <button class="btn-rank" onclick="openModal('Engine.ini besser')">⭐ Bewerten / Idee</button>
+                        <span class="btn-disabled">Offline</span>
+                        <!-- Kein Rank-Button bei Offline Mods -->
                     </td>
                 </tr>
             </tbody>
@@ -272,36 +299,37 @@
         <div class="feedback-section">
             <h2>COMMUNITY FEEDBACK & UPDATE-IDEEN</h2>
 
-            <!-- Beispiel-Block 1 -->
-            <div class="feedback-card">
-                <div class="feedback-header">
-                    <span class="feedback-user">@TrainFan_2026</span>
-                    <span class="feedback-type">⭐ 5/5 Sternen (Ansagen Mod)</span>
+            <div id="feedbackContainer">
+                <!-- Beispiel-Block 1 -->
+                <div class="feedback-card">
+                    <div class="feedback-header">
+                        <span class="feedback-user">@TrainFan_2026</span>
+                        <span class="feedback-type">⭐ 5/5 Sternen (Ansagen Mod)</span>
+                    </div>
+                    <p style="margin: 5px 0; color: #ddd;">Richtig cooler Mod! Die Durchsagen klingen mega realistisch.</p>
+                    
+                    <div class="owner-reply">
+                        <div class="owner-title">Antwort von TrueSimMods (Owner):</div>
+                        Danke dir! Das nächste Update mit Raumecho kommt schon bald!
+                    </div>
                 </div>
-                <p style="margin: 5px 0; color: #ddd;">Richtig cooler Mod! Die Durchsagen klingen mega realistisch.</p>
-                
-                <!-- Inhaberin / Owner Antwort -->
-                <div class="owner-reply">
-                    <div class="owner-title">Antwort von TrueSimMods (Owner):</div>
-                    Danke dir! Das nächste Update mit Raumecho kommt schon bald!
-                </div>
-            </div>
 
-            <!-- Beispiel-Block 2 -->
-            <div class="feedback-card">
-                <div class="feedback-header">
-                    <span class="feedback-user">@ZugFreak_DE</span>
-                    <span class="feedback-type">💡 Update-Idee (Funk Mod)</span>
+                <!-- Beispiel-Block 2 -->
+                <div class="feedback-card">
+                    <div class="feedback-header">
+                        <span class="feedback-user">@ZugFreak_DE</span>
+                        <span class="feedback-type">💡 Update-Idee (Funk Mod)</span>
+                    </div>
+                    <p style="margin: 5px 0; color: #ddd;">Kannst du vielleicht noch Rangierfunk-Durchsagen hinzufügen?</p>
                 </div>
-                <p style="margin: 5px 0; color: #ddd;">Kannst du vielleicht noch Rangierfunk-Durchsagen hinzufügen?</p>
             </div>
         </div>
     </div>
 
-    <!-- POP-UP MODAL -->
+    <!-- 1. POP-UP MODAL: BEWERTUNG / IDEE -->
     <div id="feedbackModal" class="modal">
         <div class="modal-content">
-            <span class="close-btn" onclick="closeModal()">&times;</span>
+            <span class="close-btn" onclick="closeModal('feedbackModal')">&times;</span>
             <h3 id="modalTitle" style="margin-top:0;">Feedback abgeben</h3>
 
             <div class="option-btns">
@@ -324,7 +352,29 @@
             <p style="margin: 5px 0; font-size: 0.9rem; color: #aaa;" id="inputLabel">Deine Bewertung / Nachricht:</p>
             <textarea id="userText" placeholder="Schreibe hier deinen Text..."></textarea>
 
-            <button class="btn-submit" onclick="submitForm()">Absenden (Google Login erforderlich)</button>
+            <button class="btn-submit" onclick="goToLogin()">Weiter zum Absenden</button>
+        </div>
+    </div>
+
+    <!-- 2. POP-UP MODAL: ANMELDUNG / LOGIN -->
+    <div id="loginModal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeModal('loginModal')">&times;</span>
+            <h3 style="margin-top:0; text-align:center;">Anmelden / Registrieren</h3>
+            <p style="font-size:0.85rem; color:#aaa; text-align:center; margin-bottom:15px;">Erstelle ein Konto oder melde dich an, um Feedback abzusenden.</p>
+
+            <button class="google-btn" onclick="googleLogin()">
+                <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.616z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/></svg>
+                Mit Google anmelden
+            </button>
+
+            <div class="login-divider">ODER MIT E-MAIL</div>
+
+            <input type="text" id="usernameInput" placeholder="Dein Wunsch-Username (z. B. @TrainFan)" required>
+            <input type="email" id="emailInput" placeholder="E-Mail-Adresse" required>
+            <input type="password" id="passwordInput" placeholder="Passwort" required>
+
+            <button class="btn-submit" onclick="finishSubmission()">Anmelden & Absenden</button>
         </div>
     </div>
 
@@ -332,6 +382,7 @@
         let selectedMod = '';
         let currentTab = 'ranking';
         let currentRating = 0;
+        let savedText = '';
 
         function openModal(modName) {
             selectedMod = modName;
@@ -339,8 +390,8 @@
             document.getElementById('feedbackModal').style.display = 'flex';
         }
 
-        function closeModal() {
-            document.getElementById('feedbackModal').style.display = 'none';
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
         }
 
         function selectTab(tab) {
@@ -370,17 +421,69 @@
             }
         }
 
-        function submitForm() {
-            let text = document.getElementById('userText').value;
-            if(!text) {
-                alert('Bitte gib zuerst eine Nachricht ein!');
+        function goToLogin() {
+            savedText = document.getElementById('userText').value;
+            if(!savedText) {
+                alert('Bitte gib zuerst eine Nachricht oder Bewertung ein!');
                 return;
             }
+            if(currentTab === 'ranking' && currentRating === 0) {
+                alert('Bitte wähle eine Sternebewertung (1 bis 5)!');
+                return;
+            }
+
+            closeModal('feedbackModal');
+            document.getElementById('loginModal').style.display = 'flex';
+        }
+
+        function googleLogin() {
+            let username = prompt("Willkommen! Welchen Usernamen möchtest du nutzen?", "@ModFan");
+            if(username) {
+                document.getElementById('usernameInput').value = username;
+                finishSubmission();
+            }
+        }
+
+        function finishSubmission() {
+            let username = document.getElementById('usernameInput').value;
+            if(!username) {
+                alert('Bitte wähle einen Usernamen!');
+                return;
+            }
+
+            if(!username.startsWith('@')) {
+                username = '@' + username;
+            }
+
+            // Neuen Block erstellen und oben einfügen
+            let container = document.getElementById('feedbackContainer');
+            let newCard = document.createElement('div');
+            newCard.className = 'feedback-card';
+
+            let typeText = (currentTab === 'ranking') 
+                ? `⭐ ${currentRating}/5 Sternen (${selectedMod})` 
+                : `💡 Update-Idee (${selectedMod})`;
+
+            newCard.innerHTML = `
+                <div class="feedback-header">
+                    <span class="feedback-user">${username}</span>
+                    <span class="feedback-type">${typeText}</span>
+                </div>
+                <p style="margin: 5px 0; color: #ddd;">${savedText}</p>
+            `;
+
+            container.prepend(newCard);
+
+            alert('Erfolgreich abgesendet!');
             
-            // HIER DEINEN FORMULAR-LINK EINFÜGEN (z. B. Google Forms oder Tally)
-            alert('Du wirst jetzt zum Formular weitergeleitet, um dich mit Google anzumelden und deinen Wunschnamen festzulegen!');
-            window.open('https://forms.google.com', '_blank');
-            closeModal();
+            // Felder zurücksetzen
+            document.getElementById('userText').value = '';
+            document.getElementById('usernameInput').value = '';
+            document.getElementById('emailInput').value = '';
+            document.getElementById('passwordInput').value = '';
+            setRating(0);
+
+            closeModal('loginModal');
         }
     </script>
 </body>
