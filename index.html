@@ -131,10 +131,11 @@
             background: #1e1e1e;
             border-radius: 8px;
             border-left: 4px solid #e74c3c;
-            color: #ff6b6b;
+            color: #ffffff;
         }
         .warning-box h3 { margin-top: 0; color: #e74c3c; }
-        .warning-box p { color: #ffffff; margin-bottom: 0; line-height: 1.5; }
+        .warning-box ol { margin: 10px 0 0 20px; padding: 0; line-height: 1.6; }
+        .warning-box ol li { margin-bottom: 6px; }
 
         /* Modal / Pop-up Styles */
         .modal {
@@ -153,7 +154,7 @@
             padding: 25px;
             border-radius: 10px;
             width: 90%;
-            max-width: 420px;
+            max-width: 460px;
             box-shadow: 0 4px 20px rgba(0,0,0,0.6);
             position: relative;
         }
@@ -388,7 +389,15 @@
         <!-- Wichtiger Hinweis zur Startoption -->
         <div class="warning-box" id="warningNoticeSection">
             <h3>WICHTIGER HINWEIS / IMPORTANT NOTE</h3>
-            <p><strong>LESEN:</strong> MANCHE MODS GEHEN NICHT WENN IN DEN STARTOPTIONEN NICHT <code>-HTTPAPI</code> STEHT! DAMIT DU DAS MACHEN KANNST: GEHE AUF SETTINGS, DANN AUF EIGENSCHAFTEN. DU SIEHST JETZT UNTEN BEI ALLGEMEIN DAS FELD STARTOPTIONEN!</p>
+            <p><strong style="color: #ff6b6b;">WICHTIG: Manche Mods funktionieren nur, wenn in Steam die Startoption <code>-HTTPAPI</code> eingetragen ist!</strong></p>
+            <p style="margin-top: 8px; font-weight: bold;">So stellst du das in Steam ein:</p>
+            <ol>
+                <li>Öffne <strong>Steam</strong> und gehe in deine <strong>Bibliothek</strong>.</li>
+                <li>Mache einen <strong>Rechtsklick auf Train Sim World</strong>.</li>
+                <li>Klicke ganz unten auf <strong>Eigenschaften...</strong></li>
+                <li>Gehe auf den Reiter <strong>Allgemein</strong>.</li>
+                <li>Scrolle ganz nach unten zum Feld <strong>STARTOPTIONEN</strong> und trage dort exakt ein: <code>-HTTPAPI</code></li>
+            </ol>
         </div>
 
         <!-- COMMUNITY FEEDBACK LISTE -->
@@ -404,9 +413,16 @@
     <div id="startNoticeModal" class="modal">
         <div class="modal-content" style="border-left: 6px solid #e74c3c;">
             <h3 style="margin-top:0; color:#e74c3c;">WICHTIGER HINWEIS / IMPORTANT NOTE</h3>
-            <p style="color: #ffffff; line-height: 1.5; font-size: 0.95rem;">
-                <strong>LESEN:</strong> MANCHE MODS GEHEN NICHT WENN IN DEN STARTOPTIONEN NICHT <code>-HTTPAPI</code> STEHT! DAMIT DU DAS MACHEN KANNST: GEHE AUF SETTINGS, DANN AUF EIGENSCHAFTEN. DU SIEHST JETZT UNTEN BEI ALLGEMEIN DAS FELD STARTOPTIONEN!
+            <p style="color: #ff6b6b; font-weight: bold; margin-bottom: 8px;">
+                Manche Mods funktionieren nur, wenn in Steam die Startoption <code>-HTTPAPI</code> eingetragen ist!
             </p>
+            <p style="color: #ffffff; font-size: 0.9rem; margin-bottom: 5px;"><strong>So geht's in Steam:</strong></p>
+            <ol style="color: #dddddd; font-size: 0.85rem; padding-left: 18px; margin: 0 0 15px 0; line-height: 1.5;">
+                <li>Öffne <strong>Steam</strong> und gehe in deine Bibliothek.</li>
+                <li>Mache einen <strong>Rechtsklick auf Train Sim World</strong>.</li>
+                <li>Klicke auf <strong>Eigenschaften...</strong></li>
+                <li>Unter <strong>Allgemein</strong> ganz unten bei <strong>STARTOPTIONEN</strong> folgendes eintragen: <code>-HTTPAPI</code></li>
+            </ol>
             <button id="noticeOkBtn" class="btn-submit" disabled onclick="closeNoticeAndScroll()">Bitte lesen... (3s)</button>
         </div>
     </div>
