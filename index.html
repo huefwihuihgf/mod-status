@@ -35,15 +35,30 @@
             overflow: hidden; 
         }
 
-        th, td { padding: 14px; border-bottom: 1px solid #2a2a2a; text-align: left; }
+        th, td { padding: 14px; border-bottom: 1px solid #2a2a2a; text-align: left; vertical-align: top; }
         th { background-color: #252525; color: #bbb; text-transform: uppercase; font-size: 0.85rem; }
 
         .status-public { color: #2ecc71; font-weight: bold; }
         .status-private { color: #e74c3c; font-weight: bold; }
 
-        .btn-link { background: #3498db; color: white; padding: 6px 14px; text-decoration: none; border-radius: 4px; font-weight: bold; display: inline-block; }
+        .btn-link { background: #3498db; color: white; padding: 6px 14px; text-decoration: none; border-radius: 4px; font-weight: bold; display: inline-block; margin-bottom: 6px; }
         .btn-link:hover { background: #2980b9; }
-        .btn-disabled { background: #444; color: #888; padding: 6px 14px; text-decoration: none; border-radius: 4px; cursor: not-allowed; display: inline-block; }
+        .btn-disabled { background: #444; color: #888; padding: 6px 14px; text-decoration: none; border-radius: 4px; cursor: not-allowed; display: inline-block; margin-bottom: 6px; }
+
+        /* Gelber Rank / Feedback Button */
+        .btn-rank { 
+            background: #f1c40f; 
+            color: #121212; 
+            padding: 6px 12px; 
+            text-decoration: none; 
+            border-radius: 4px; 
+            font-weight: bold; 
+            display: inline-block; 
+            font-size: 0.85rem;
+            cursor: pointer;
+            border: none;
+        }
+        .btn-rank:hover { background: #d4ac0d; }
 
         .info-box { 
             margin-top: 30px; 
@@ -66,6 +81,130 @@
         }
         .warning-box h3 { margin-top: 0; color: #e74c3c; }
         .warning-box p { color: #ffffff; margin-bottom: 0; line-height: 1.5; }
+
+        /* Modal / Pop-up Styles */
+        .modal {
+            display: none; 
+            position: fixed; 
+            z-index: 1000; 
+            left: 0; top: 0; 
+            width: 100%; height: 100%; 
+            background-color: rgba(0,0,0,0.8);
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background-color: #1e1e1e;
+            padding: 25px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 450px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            position: relative;
+        }
+
+        .close-btn {
+            position: absolute;
+            right: 15px;
+            top: 10px;
+            color: #aaa;
+            font-size: 24px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .option-btns {
+            display: flex;
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 10px;
+            border: 2px solid #333;
+            background: #252525;
+            color: #fff;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .tab-btn.active {
+            border-color: #f1c40f;
+            background: #332b00;
+            color: #f1c40f;
+        }
+
+        .rating-stars {
+            font-size: 24px;
+            color: #555;
+            cursor: pointer;
+            margin-bottom: 10px;
+        }
+
+        .rating-stars span.selected {
+            color: #f1c40f;
+        }
+
+        textarea {
+            width: 100%;
+            height: 80px;
+            background: #121212;
+            border: 1px solid #333;
+            color: #fff;
+            padding: 10px;
+            border-radius: 6px;
+            box-sizing: border-box;
+            resize: none;
+            margin-bottom: 15px;
+        }
+
+        .btn-submit {
+            width: 100%;
+            background: #2ecc71;
+            color: #fff;
+            padding: 10px;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+        .btn-submit:hover { background: #27ae60; }
+
+        /* Öffentliche Liste der Feedbacks */
+        .feedback-section {
+            margin-top: 40px;
+        }
+
+        .feedback-card {
+            background: #1e1e1e;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-left: 4px solid #f1c40f;
+        }
+
+        .feedback-header {
+            display: flex;
+            justify-content: space-between;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        .feedback-user { color: #3498db; }
+        .feedback-type { background: #333; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; }
+        .owner-reply {
+            margin-top: 10px;
+            padding: 10px;
+            background: #252525;
+            border-radius: 6px;
+            border-left: 3px solid #2ecc71;
+            font-size: 0.9rem;
+        }
+        .owner-title { color: #2ecc71; font-weight: bold; font-size: 0.8rem; }
     </style>
 </head>
 <body>
@@ -85,17 +224,26 @@
                 <tr>
                     <td>Ansagen Mod</td>
                     <td><span class="status-public">PUBLIC (Online)</span></td>
-                    <td><a href="https://drive.google.com/uc?export=download&id=1dtoEtKaLqN34_KP19eFmymhKLdCts5M5" class="btn-link" target="_blank">Download</a></td>
+                    <td>
+                        <a href="https://drive.google.com/uc?export=download&id=1dtoEtKaLqN34_KP19eFmymhKLdCts5M5" class="btn-link" target="_blank">Download</a><br>
+                        <button class="btn-rank" onclick="openModal('Ansagen Mod')">⭐ Bewerten / Idee</button>
+                    </td>
                 </tr>
                 <tr>
                     <td>Funk Mod</td>
                     <td><span class="status-public">PUBLIC (Online)</span></td>
-                    <td><a href="https://drive.google.com/uc?export=download&id=1uqGvL0FJ-fMftr0Kbj8fRF58SBprcv92" class="btn-link" target="_blank">Download</a></td>
+                    <td>
+                        <a href="https://drive.google.com/uc?export=download&id=1uqGvL0FJ-fMftr0Kbj8fRF58SBprcv92" class="btn-link" target="_blank">Download</a><br>
+                        <button class="btn-rank" onclick="openModal('Funk Mod')">⭐ Bewerten / Idee</button>
+                    </td>
                 </tr>
                 <tr>
                     <td>Engine.ini besser</td>
                     <td><span class="status-private">NOT PUBLIC (Offline)</span></td>
-                    <td><span class="btn-disabled">Offline</span></td>
+                    <td>
+                        <span class="btn-disabled">Offline</span><br>
+                        <button class="btn-rank" onclick="openModal('Engine.ini besser')">⭐ Bewerten / Idee</button>
+                    </td>
                 </tr>
             </tbody>
         </table>
@@ -119,7 +267,121 @@
             <h3>WICHTIGER HINWEIS / IMPORTANT NOTE</h3>
             <p><strong>LESEN:</strong> MANCHE MODS GEHEN NICHT WENN IN DEN STARTOPTIONEN NICHT <code>-HTTPAPI</code> STEHT! DAMIT DU DAS MACHEN KANNST: GEHE AUF SETTINGS, DANN AUF EIGENSCHAFTEN. DU SIEHST JETZT UNTEN BEI ALLGEMEIN DAS FELD STARTOPTIONEN!</p>
         </div>
+
+        <!-- COMMUNITY FEEDBACK LISTE -->
+        <div class="feedback-section">
+            <h2>COMMUNITY FEEDBACK & UPDATE-IDEEN</h2>
+
+            <!-- Beispiel-Block 1 -->
+            <div class="feedback-card">
+                <div class="feedback-header">
+                    <span class="feedback-user">@TrainFan_2026</span>
+                    <span class="feedback-type">⭐ 5/5 Sternen (Ansagen Mod)</span>
+                </div>
+                <p style="margin: 5px 0; color: #ddd;">Richtig cooler Mod! Die Durchsagen klingen mega realistisch.</p>
+                
+                <!-- Inhaberin / Owner Antwort -->
+                <div class="owner-reply">
+                    <div class="owner-title">Antwort von TrueSimMods (Owner):</div>
+                    Danke dir! Das nächste Update mit Raumecho kommt schon bald!
+                </div>
+            </div>
+
+            <!-- Beispiel-Block 2 -->
+            <div class="feedback-card">
+                <div class="feedback-header">
+                    <span class="feedback-user">@ZugFreak_DE</span>
+                    <span class="feedback-type">💡 Update-Idee (Funk Mod)</span>
+                </div>
+                <p style="margin: 5px 0; color: #ddd;">Kannst du vielleicht noch Rangierfunk-Durchsagen hinzufügen?</p>
+            </div>
+        </div>
     </div>
 
+    <!-- POP-UP MODAL -->
+    <div id="feedbackModal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeModal()">&times;</span>
+            <h3 id="modalTitle" style="margin-top:0;">Feedback abgeben</h3>
+
+            <div class="option-btns">
+                <button id="btnRanking" class="tab-btn active" onclick="selectTab('ranking')">1. Ranking</button>
+                <button id="btnIdea" class="tab-btn" onclick="selectTab('idea')">2. Update-Idee</button>
+            </div>
+
+            <!-- Sterne Auswahl (Nur bei Ranking) -->
+            <div id="starArea">
+                <p style="margin: 5px 0; font-size: 0.9rem; color: #aaa;">Sterne auswählen (1 bis 5):</p>
+                <div class="rating-stars" id="starContainer">
+                    <span onclick="setRating(1)">★</span>
+                    <span onclick="setRating(2)">★</span>
+                    <span onclick="setRating(3)">★</span>
+                    <span onclick="setRating(4)">★</span>
+                    <span onclick="setRating(5)">★</span>
+                </div>
+            </div>
+
+            <p style="margin: 5px 0; font-size: 0.9rem; color: #aaa;" id="inputLabel">Deine Bewertung / Nachricht:</p>
+            <textarea id="userText" placeholder="Schreibe hier deinen Text..."></textarea>
+
+            <button class="btn-submit" onclick="submitForm()">Absenden (Google Login erforderlich)</button>
+        </div>
+    </div>
+
+    <script>
+        let selectedMod = '';
+        let currentTab = 'ranking';
+        let currentRating = 0;
+
+        function openModal(modName) {
+            selectedMod = modName;
+            document.getElementById('modalTitle').innerText = 'Feedback für ' + modName;
+            document.getElementById('feedbackModal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('feedbackModal').style.display = 'none';
+        }
+
+        function selectTab(tab) {
+            currentTab = tab;
+            if(tab === 'ranking') {
+                document.getElementById('btnRanking').classList.add('active');
+                document.getElementById('btnIdea').classList.remove('active');
+                document.getElementById('starArea').style.display = 'block';
+                document.getElementById('inputLabel').innerText = 'Deine Bewertung / Nachricht:';
+            } else {
+                document.getElementById('btnIdea').classList.add('active');
+                document.getElementById('btnRanking').classList.remove('active');
+                document.getElementById('starArea').style.display = 'none';
+                document.getElementById('inputLabel').innerText = 'Deine Update-Idee beschreiben:';
+            }
+        }
+
+        function setRating(rating) {
+            currentRating = rating;
+            let stars = document.getElementById('starContainer').children;
+            for(let i = 0; i < stars.length; i++) {
+                if(i < rating) {
+                    stars[i].classList.add('selected');
+                } else {
+                    stars[i].classList.remove('selected');
+                }
+            }
+        }
+
+        function submitForm() {
+            let text = document.getElementById('userText').value;
+            if(!text) {
+                alert('Bitte gib zuerst eine Nachricht ein!');
+                return;
+            }
+            
+            // HIER DEINEN FORMULAR-LINK EINFÜGEN (z. B. Google Forms oder Tally)
+            alert('Du wirst jetzt zum Formular weitergeleitet, um dich mit Google anzumelden und deinen Wunschnamen festzulegen!');
+            window.open('https://forms.google.com', '_blank');
+            closeModal();
+        }
+    </script>
 </body>
 </html>
