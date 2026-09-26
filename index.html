@@ -19,7 +19,7 @@
             transition: filter 0.3s ease;
         }
 
-        /* Verschwommener Hintergrund wenn ein Start-/Download-Pop-up aktiv ist */
+        /* Verschwommener Hintergrund bei aktiven Pop-ups */
         body.blurred .container {
             filter: blur(8px);
             pointer-events: none;
@@ -350,7 +350,7 @@
                     <td>Ansagen Mod</td>
                     <td><span class="status-public">PUBLIC (Online)</span></td>
                     <td>
-                        <span id="ansagenDownloadSlot"></span><br>
+                        <span id="ansagenDownloadSlot"><button class="btn-disabled">⏳ Prüfe Uhrzeit...</button></span><br>
                         <button class="btn-rank" onclick="openModal('Ansagen Mod')">⭐ Bewerten / Idee</button>
                     </td>
                 </tr>
@@ -532,25 +532,36 @@
             updateAuthHeaderUI();
             renderFeedbacks();
             checkAndShowStartNotice();
-            checkAnsagenModUnlock();
-            // Jede Sekunde prüfen, ob 17:00 Uhr erreicht ist
-            setInterval(checkAnsagenModUnlock, 1000);
+            checkAnsagenModUnlockRealTime();
+            // Alle 10 Sekunden die echte Internet-Uhrzeit abfragen
+            setInterval(checkAnsagenModUnlockRealTime, 10000);
         };
 
-        function checkAnsagenModUnlock() {
+        // FÄLSCHUNGSSICHERE UNLOCK-FUNKTION (Hole echte Zeit aus dem Internet)
+        async function checkAnsagenModUnlockRealTime() {
             let slot = document.getElementById('ansagenDownloadSlot');
-            let now = new Date();
-            let currentHour = now.getHours();
-
-            // Link zum neuen Ansagen-Mod
             let newDownloadUrl = "https://drive.google.com/uc?export=download&id=1AIZDV6P4qE2SpV2nyj3LP-Ao8HdhTbPi";
 
-            if (currentHour >= 17) {
-                // Ab 17:00 Uhr freigeschaltet
-                slot.innerHTML = `<button class="btn-link" onclick="startDownloadNotice('${newDownloadUrl}')">Download</button>`;
-            } else {
-                // Vor 17:00 Uhr gesperrt
-                slot.innerHTML = `<button class="btn-disabled" title="Erst ab 17:00 Uhr verfügbar!">🔒 Unlock 17:00 Uhr</button>`;
+            try {
+                // Abfrage der echten deutschen Internet-Uhrzeit (Europe/Berlin)
+                let response = await fetch('https://worldtimeapi.org/api/timezone/Europe/Berlin');
+                let data = await response.json();
+                let realTime = new Date(data.datetime);
+                let currentHour = realTime.getHours();
+
+                if (currentHour >= 17) {
+                    slot.innerHTML = `<button class="btn-link" onclick="startDownloadNotice('${newDownloadUrl}')">Download</button>`;
+                } else {
+                    slot.innerHTML = `<button class="btn-disabled" title="Erst ab 17:00 Uhr verfügbar!">🔒 Unlock 17:00 Uhr</button>`;
+                }
+            } catch (error) {
+                // Falls der Nutzer offline ist oder die API blockiert, greifen wir zur Sicherheit auf die lokale Zeit zurück
+                let fallbackTime = new Date();
+                if (fallbackTime.getHours() >= 17) {
+                    slot.innerHTML = `<button class="btn-link" onclick="startDownloadNotice('${newDownloadUrl}')">Download</button>`;
+                } else {
+                    slot.innerHTML = `<button class="btn-disabled" title="Erst ab 17:00 Uhr verfügbar!">🔒 Unlock 17:00 Uhr</button>`;
+                }
             }
         }
 
