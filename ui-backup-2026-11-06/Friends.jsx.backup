@@ -1,0 +1,658 @@
+
+import { useEffect, useState } from "react";
+import { supabase } from "./supabase";
+
+const foods = [
+  { name: "Chicken Nuggets", image: "https://images.unsplash.com/photo-1562967914-608f82629710?w=500" },
+  { name: "Pizza", image: "https://images.unsplash.com/photo-1513104890138-7c749659a591?w=500" },
+  { name: "Lasagne", image: "https://images.unsplash.com/photo-1574894709920-11b28e7367e3?w=500" },
+  { name: "Burger", image: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=500" },
+  { name: "Schnitzel", image: "https://images.unsplash.com/photo-1599921841143-819065a55cc6?w=500" },
+  { name: "Pommes", image: "https://images.unsplash.com/photo-1573080496219-bb080dd4f877?w=500" },
+  { name: "Nudeln", image: "https://images.unsplash.com/photo-1473093295043-cdd812d0e601?w=500" },
+  { name: "Pfannkuchen", image: "https://images.unsplash.com/photo-1528207776546-365bb710ee93?w=500" },
+  { name: "Fisch", image: "https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?w=500" },
+  { name: "Salat", image: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=500" },
+  { name: "Reisgerichte", image: "https://images.unsplash.com/photo-1512058564366-18510be2db19?w=500" },
+  { name: "Suppe", image: "https://images.unsplash.com/photo-1547592180-85f173990554?w=500" },
+  { name: "Tomaten", image: "https://images.unsplash.com/photo-1546094096-0df4bcaaa337?w=500" },
+  { name: "Pilze", image: "https://images.unsplash.com/photo-1504545102780-26774c1bb073?w=500" },
+  { name: "Brokkoli", image: "https://images.unsplash.com/photo-1459411621453-7b03977f4bfc?w=500" },
+  { name: "Paprika", image: "https://images.unsplash.com/photo-1563565375-f3fdfdbefa83?w=500" },
+  { name: "Zwiebeln", image: "https://images.unsplash.com/photo-1508747703725-719777637510?w=500" },
+  { name: "Karotten", image: "https://images.unsplash.com/photo-1445282768818-728615cc910a?w=500" },
+];
+
+const orangeButton = {
+  border: "none",
+  borderRadius: 11,
+  padding: "11px 16px",
+  cursor: "pointer",
+  fontWeight: 700,
+  background: "#f28a35",
+  color: "white",
+};
+
+const lightButton = {
+  border: "none",
+  borderRadius: 11,
+  padding: "11px 16px",
+  cursor: "pointer",
+  fontWeight: 700,
+  background: "#fff1e5",
+  color: "#d87527",
+};
+
+function Avatar({ url, username, size = 48 }) {
+  return (
+    <div style={{
+      width: size,
+      height: size,
+      flexShrink: 0,
+      borderRadius: "50%",
+      overflow: "hidden",
+      background: "#fff0e3",
+      color: "#d87527",
+      display: "grid",
+      placeItems: "center",
+      fontSize: size * 0.42,
+      fontWeight: 800,
+    }}>
+      {url ? (
+        <img
+          src={url}
+          alt={`Profilbild von ${username}`}
+          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+        />
+      ) : (
+        username?.charAt(0).toUpperCase() || "?"
+      )}
+    </div>
+  );
+}
+
+function FoodPhoto({ name }) {
+  const food = foods.find((item) => item.name === name);
+
+  return (
+    <div style={{
+      overflow: "hidden",
+      borderRadius: 13,
+      background: "#f5f1ec",
+    }}>
+      {food ? (
+        <img
+          src={food.image}
+          alt={name}
+          loading="lazy"
+          style={{
+            display: "block",
+            width: "100%",
+            height: 115,
+            objectFit: "cover",
+          }}
+        />
+      ) : (
+        <div style={{
+          height: 115,
+          display: "grid",
+          placeItems: "center",
+          color: "#999",
+        }}>
+          🍽️
+        </div>
+      )}
+      <div style={{
+        padding: "9px 8px",
+        fontSize: 13,
+        fontWeight: 650,
+        background: "white",
+      }}>
+        {name}
+      </div>
+    </div>
+  );
+}
+
+function FoodSection({ title, items, emptyText }) {
+  return (
+    <section style={{ marginTop: 24 }}>
+      <h3 style={{ fontSize: 17, marginBottom: 12 }}>{title}</h3>
+      {items?.length ? (
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fill, minmax(125px, 1fr))",
+          gap: 12,
+        }}>
+          {items.map((name) => (
+            <FoodPhoto key={name} name={name} />
+          ))}
+        </div>
+      ) : (
+        <p style={{ color: "#999", fontSize: 14 }}>{emptyText}</p>
+      )}
+    </section>
+  );
+}
+
+export default function Friends({ userId }) {
+  const [search, setSearch] = useState("");
+  const [results, setResults] = useState([]);
+  const [friends, setFriends] = useState([]);
+  const [requests, setRequests] = useState([]);
+  const [selectedFriend, setSelectedFriend] = useState(null);
+
+  const [loading, setLoading] = useState(true);
+  const [searching, setSearching] = useState(false);
+  const [busyId, setBusyId] = useState(null);
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+
+  async function loadData() {
+    setLoading(true);
+    setError("");
+
+    const [friendResult, requestResult] = await Promise.all([
+      supabase.rpc("get_my_friends"),
+      supabase.rpc("get_friend_requests"),
+    ]);
+
+    if (friendResult.error || requestResult.error) {
+      setError(
+        friendResult.error?.message ||
+        requestResult.error?.message ||
+        "Die Freundesliste konnte nicht geladen werden."
+      );
+      setLoading(false);
+      return;
+    }
+
+    const friendsWithImages = await Promise.all(
+      (friendResult.data || []).map(async (friend) => {
+        if (!friend.avatar_path) return { ...friend, avatarUrl: null };
+
+        const { data } = await supabase.storage
+          .from("profile-images")
+          .createSignedUrl(friend.avatar_path, 3600);
+
+        return {
+          ...friend,
+          avatarUrl: data?.signedUrl || null,
+        };
+      })
+    );
+
+    setFriends(friendsWithImages);
+    setRequests(requestResult.data || []);
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    loadData();
+  }, [userId]);
+
+  async function searchUsers(event) {
+    event.preventDefault();
+    setError("");
+    setMessage("");
+    setResults([]);
+
+    if (search.trim().length < 2) {
+      setError("Bitte gib mindestens 2 Zeichen ein.");
+      return;
+    }
+
+    setSearching(true);
+
+    const { data, error } = await supabase.rpc("search_users", {
+      search_username: search.trim(),
+    });
+
+    setSearching(false);
+
+    if (error) {
+      setError(error.message);
+      return;
+    }
+
+    setResults(data || []);
+
+    if (!data?.length) {
+      setMessage("Keine passenden Nutzer gefunden.");
+    }
+  }
+
+  async function sendRequest(targetId) {
+    setBusyId(targetId);
+    setError("");
+    setMessage("");
+
+    const { error } = await supabase.rpc("send_friend_request", {
+      target_user_id: targetId,
+    });
+
+    setBusyId(null);
+
+    if (error) {
+      setError(error.message);
+      return;
+    }
+
+    setResults((current) =>
+      current.filter((person) => person.user_id !== targetId)
+    );
+    setMessage("Freundschaftsanfrage wurde verschickt!");
+    await loadData();
+  }
+
+  async function removeFriend(friend) {
+    const confirmed = window.confirm(
+      `Möchtest du ${friend.username} wirklich aus deiner Freundesliste entfernen?`
+    );
+
+    if (!confirmed) return;
+
+    setBusyId(friend.user_id);
+    setError("");
+    setMessage("");
+
+    const { error } = await supabase.rpc("remove_friend", {
+      target_user_id: friend.user_id,
+    });
+
+    setBusyId(null);
+
+    if (error) {
+      setError("Freund konnte nicht entfernt werden: " + error.message);
+      return;
+    }
+
+    setSelectedFriend(null);
+    setMessage(`${friend.username} wurde aus deiner Freundesliste entfernt.`);
+    await loadData();
+  }
+
+  async function respondToRequest(requestId, accept) {
+    setBusyId(requestId);
+    setError("");
+    setMessage("");
+
+    const { error } = await supabase.rpc("respond_friend_request", {
+      request_id: requestId,
+      accept,
+    });
+
+    setBusyId(null);
+
+    if (error) {
+      setError(error.message);
+      return;
+    }
+
+    setMessage(
+      accept
+        ? "Ihr seid jetzt miteinander befreundet!"
+        : "Die Anfrage wurde abgelehnt."
+    );
+
+    await loadData();
+  }
+
+  const incoming = requests.filter((request) => request.incoming);
+  const outgoing = requests.filter((request) => !request.incoming);
+
+  return (
+    <section style={{ maxWidth: 900, margin: "0 auto", paddingBottom: 40 }}>
+      <div style={{ marginBottom: 28 }}>
+        <span className="small-eyebrow">GEMEINSAM PLANEN</span>
+        <h1 style={{ marginBottom: 8 }}>Deine Freunde</h1>
+        <p style={{ color: "#888", lineHeight: 1.6 }}>
+          Finde Freunde, entdecke ihre Lieblingsgerichte und plant gemeinsam.
+        </p>
+      </div>
+
+      {error && (
+        <div style={{
+          background: "#fff0ee",
+          color: "#b94c40",
+          padding: 14,
+          borderRadius: 12,
+          marginBottom: 16,
+          overflowWrap: "anywhere",
+        }}>
+          {error}
+        </div>
+      )}
+
+      {message && (
+        <div style={{
+          background: "#eff9f0",
+          color: "#367b42",
+          padding: 14,
+          borderRadius: 12,
+          marginBottom: 16,
+        }}>
+          {message}
+        </div>
+      )}
+
+      <div style={{
+        background: "white",
+        border: "1px solid #eee",
+        borderRadius: 18,
+        padding: 22,
+        marginBottom: 22,
+      }}>
+        <h2 style={{ marginTop: 0 }}>🔎 Freunde finden</h2>
+        <p style={{ color: "#888", fontSize: 14 }}>
+          Suche nach dem Benutzernamen einer Person.
+        </p>
+
+        <form onSubmit={searchUsers} style={{
+          display: "flex",
+          gap: 10,
+          flexWrap: "wrap",
+        }}>
+          <input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Benutzername eingeben ..."
+            style={{
+              flex: "1 1 200px",
+              minWidth: 0,
+              border: "1px solid #e8e8e8",
+              borderRadius: 11,
+              padding: 13,
+              fontSize: 14,
+            }}
+          />
+          <button type="submit" disabled={searching} style={orangeButton}>
+            {searching ? "Suche ..." : "Suchen"}
+          </button>
+        </form>
+
+        {results.map((person) => (
+          <div key={person.user_id} style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+            padding: 12,
+            marginTop: 12,
+            border: "1px solid #eee",
+            borderRadius: 13,
+          }}>
+            <strong>{person.username}</strong>
+            <button
+              style={lightButton}
+              disabled={busyId === person.user_id}
+              onClick={() => sendRequest(person.user_id)}
+            >
+              {busyId === person.user_id ? "..." : "＋ Hinzufügen"}
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {loading ? (
+        <div style={{ padding: 25, textAlign: "center", color: "#999" }}>
+          Freundesliste wird geladen ...
+        </div>
+      ) : (
+        <>
+          {incoming.length > 0 && (
+            <div style={{
+              background: "white",
+              border: "1px solid #eee",
+              borderRadius: 18,
+              padding: 22,
+              marginBottom: 22,
+            }}>
+              <h2 style={{ marginTop: 0 }}>
+                Eingehende Anfragen ({incoming.length})
+              </h2>
+              {incoming.map((request) => (
+                <div key={request.request_id} style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  flexWrap: "wrap",
+                  gap: 12,
+                  padding: "13px 0",
+                }}>
+                  <strong>{request.username}</strong>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button
+                      style={orangeButton}
+                      disabled={busyId === request.request_id}
+                      onClick={() => respondToRequest(request.request_id, true)}
+                    >
+                      Annehmen
+                    </button>
+                    <button
+                      style={lightButton}
+                      disabled={busyId === request.request_id}
+                      onClick={() => respondToRequest(request.request_id, false)}
+                    >
+                      Ablehnen
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {outgoing.length > 0 && (
+            <div style={{
+              background: "white",
+              border: "1px solid #eee",
+              borderRadius: 18,
+              padding: 22,
+              marginBottom: 22,
+            }}>
+              <h2 style={{ marginTop: 0 }}>Ausstehende Anfragen</h2>
+              {outgoing.map((request) => (
+                <div key={request.request_id} style={{
+                  padding: "12px 0",
+                  color: "#777",
+                }}>
+                  {request.username}
+                  <span style={{ float: "right", color: "#d77a31" }}>
+                    Anfrage gesendet
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div style={{
+            background: "white",
+            border: "1px solid #eee",
+            borderRadius: 18,
+            padding: 22,
+          }}>
+            <h2 style={{ marginTop: 0 }}>
+              Deine Freundesliste ({friends.length})
+            </h2>
+
+            {friends.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "25px 10px" }}>
+                <div style={{ fontSize: 42 }}>♧</div>
+                <strong>Noch keine Freunde</strong>
+                <p style={{ color: "#999", fontSize: 13 }}>
+                  Suche oben nach einem Benutzernamen und füge deine Freunde hinzu.
+                </p>
+              </div>
+            ) : (
+              <div style={{ display: "grid", gap: 12 }}>
+                {friends.map((friend) => (
+                  <button
+                    key={friend.user_id}
+                    onClick={() => setSelectedFriend(friend)}
+                    style={{
+                      width: "100%",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 13,
+                      padding: 14,
+                      border: "1px solid #eee",
+                      borderRadius: 15,
+                      background: "white",
+                      textAlign: "left",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <Avatar
+                      url={friend.avatarUrl}
+                      username={friend.username}
+                      size={54}
+                    />
+                    <span style={{ flex: 1 }}>
+                      <strong style={{ display: "block", color: "#333" }}>
+                        {friend.username}
+                      </strong>
+                      <small style={{ color: "#999" }}>
+                        Dein EssenPlan-Freund
+                      </small>
+                    </span>
+                    <span style={{ color: "#d87527", fontSize: 22 }}>›</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {selectedFriend && (
+        <div
+          onClick={() => setSelectedFriend(null)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 1000,
+            background: "rgba(25, 22, 19, 0.58)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 14,
+          }}
+        >
+          <div
+            onClick={(event) => event.stopPropagation()}
+            style={{
+              background: "#fff",
+              borderRadius: 24,
+              width: "100%",
+              maxWidth: 620,
+              maxHeight: "90vh",
+              overflowY: "auto",
+              position: "relative",
+              padding: 24,
+            }}
+          >
+            <button
+              onClick={() => setSelectedFriend(null)}
+              aria-label="Profil schließen"
+              style={{
+                position: "absolute",
+                top: 15,
+                right: 15,
+                border: "none",
+                background: "#f5f3f0",
+                borderRadius: "50%",
+                width: 38,
+                height: 38,
+                cursor: "pointer",
+                fontSize: 20,
+              }}
+            >
+              ×
+            </button>
+
+            <button
+  type="button"
+  onClick={() => removeFriend(selectedFriend)}
+  disabled={busyId === selectedFriend.user_id}
+  style={{
+    width: "100%",
+    marginTop: 12,
+    padding: 13,
+    border: "1px solid #f1d4d0",
+    borderRadius: 11,
+    background: "#fff4f2",
+    color: "#c65345",
+    fontWeight: 700,
+    cursor: "pointer",
+  }}
+>
+  {busyId === selectedFriend.user_id
+    ? "Wird entfernt ..."
+    : "Freund entfernen"}
+</button>
+
+            <div style={{
+              textAlign: "center",
+              paddingTop: 12,
+              paddingBottom: 20,
+            }}>
+              <div style={{ display: "flex", justifyContent: "center" }}>
+                <Avatar
+                  url={selectedFriend.avatarUrl}
+                  username={selectedFriend.username}
+                  size={116}
+                />
+              </div>
+              <h1 style={{ margin: "16px 0 5px", fontSize: 28 }}>
+                {selectedFriend.username}
+              </h1>
+              <span style={{
+                display: "inline-block",
+                background: "#eff9f0",
+                color: "#43834b",
+                borderRadius: 20,
+                padding: "7px 13px",
+                fontSize: 12,
+                fontWeight: 700,
+              }}>
+                ✓ Dein Freund
+              </span>
+              <p style={{ color: "#999", fontSize: 13 }}>
+                Persönliches Geschmacksprofil
+              </p>
+            </div>
+
+            <div style={{
+              background: "#fff8f1",
+              borderRadius: 16,
+              padding: 17,
+            }}>
+              <FoodSection
+                title="❤️ Lieblingsgerichte"
+                items={selectedFriend.taste_profile?.favorites || []}
+                emptyText="Hier wurden noch keine Lieblingsgerichte ausgewählt."
+              />
+              <FoodSection
+                title="🚫 Das mag ich nicht"
+                items={selectedFriend.taste_profile?.dislikes || []}
+                emptyText="Hier wurden noch keine Abneigungen ausgewählt."
+              />
+            </div>
+
+            <button
+              onClick={() => setSelectedFriend(null)}
+              style={{
+                ...orangeButton,
+                width: "100%",
+                marginTop: 20,
+                padding: 14,
+              }}
+            >
+              Schließen
+            </button>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}

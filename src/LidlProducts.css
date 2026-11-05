@@ -1,0 +1,176 @@
+
+.lidl-section {
+  margin-top: 30px;
+  padding: 24px;
+  background: #fff;
+  border: 1px solid #f0e9e5;
+  border-radius: 22px;
+}
+
+.lidl-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 22px;
+}
+
+.lidl-eyebrow {
+  color: #d66b42;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+}
+
+.lidl-header h2 {
+  margin: 7px 0;
+  font-size: 23px;
+  color: #292522;
+}
+
+.lidl-header p {
+  margin: 0;
+  color: #89817b;
+  font-size: 13px;
+}
+
+.lidl-product-count {
+  min-width: 55px;
+  height: 55px;
+  border-radius: 17px;
+  background: #fff3eb;
+  color: #d66b42;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+}
+
+.lidl-product-count small {
+  font-size: 9px;
+  font-weight: 600;
+}
+
+.lidl-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 15px;
+}
+
+.lidl-card {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid #eee8e3;
+  border-radius: 17px;
+  background: white;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.lidl-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 9px 25px #0000000c;
+}
+
+.lidl-image-area {
+  height: 155px;
+  background: #faf8f5;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 12px;
+}
+
+.lidl-image-area img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.lidl-image-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: #b4aaa1;
+}
+
+.lidl-image-placeholder span {
+  font-size: 38px;
+}
+
+.lidl-image-placeholder small {
+  font-size: 11px;
+}
+
+.lidl-card-content {
+  padding: 13px;
+}
+
+.lidl-category {
+  display: inline-block;
+  padding: 5px 8px;
+  border-radius: 7px;
+  background: #f5f1ed;
+  color: #81756c;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.lidl-brand {
+  display: block;
+  margin-top: 11px;
+  color: #d66b42;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.lidl-card h3 {
+  margin: 4px 0;
+  color: #292522;
+  font-size: 14px;
+}
+
+.lidl-size {
+  margin: 5px 0 13px;
+  color: #99918a;
+  font-size: 11px;
+}
+
+.lidl-price-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 5px;
+  border-top: 1px solid #f0ece8;
+  padding-top: 11px;
+}
+
+.lidl-price-row strong {
+  color: #292522;
+  font-size: 19px;
+}
+
+.lidl-price-row span {
+  color: #82776e;
+  font-size: 9px;
+  text-align: right;
+}
+
+@media (max-width: 420px) {
+  .lidl-section {
+    padding: 15px;
+  }
+
+  .lidl-grid {
+    gap: 10px;
+  }
+
+  .lidl-image-area {
+    height: 125px;
+  }
+
+  .lidl-card-content {
+    padding: 10px;
+  }
+}
