@@ -29,11 +29,21 @@ export default function Messages({ userId }) {
 
     async function loadFriends() {
       const { data, error: friendsError } = await supabase.rpc("get_my_friends");
-      if (!active) return;
       if (friendsError) {
+        if (!active) return;
         setError(`Freunde konnten nicht geladen werden: ${friendsError.message}`);
       } else {
-        setFriends(data || []);
+        const friendsWithImages = await Promise.all(
+          (data || []).map(async (friend) => {
+            if (!friend.avatar_path) return { ...friend, avatarUrl: null };
+            const { data: imageData } = await supabase.storage
+              .from("profile-images")
+              .createSignedUrl(friend.avatar_path, 3600);
+            return { ...friend, avatarUrl: imageData?.signedUrl || null };
+          })
+        );
+        if (!active) return;
+        setFriends(friendsWithImages);
       }
       setLoadingFriends(false);
     }
@@ -223,7 +233,11 @@ export default function Messages({ userId }) {
                   }}
                 >
                   <span className="messages-friend-avatar">
-                    {friend.username?.charAt(0).toUpperCase() || "?"}
+                    {friend.avatarUrl ? (
+                      <img src={friend.avatarUrl} alt="" />
+                    ) : (
+                      friend.username?.charAt(0).toUpperCase() || "?"
+                    )}
                   </span>
                   <span><strong>{friend.username}</strong><small>Chat öffnen</small></span>
                   <span className="messages-friend-arrow" aria-hidden="true">›</span>
@@ -240,7 +254,11 @@ export default function Messages({ userId }) {
             <>
               <header className="messages-chat-header">
                 <span className="messages-friend-avatar">
-                  {selectedFriend.username?.charAt(0).toUpperCase() || "?"}
+                  {selectedFriend.avatarUrl ? (
+                    <img src={selectedFriend.avatarUrl} alt="" />
+                  ) : (
+                    selectedFriend.username?.charAt(0).toUpperCase() || "?"
+                  )}
                 </span>
                 <div><strong>{selectedFriend.username}</strong><small>Dein EssenPlan-Freund</small></div>
               </header>

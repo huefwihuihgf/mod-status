@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "./supabase";
 import "./App.css";
 import Friends from "./Friends";
@@ -10,16 +10,19 @@ import { ImageAttribution, RecipeImage } from "./RecipeImage";
 import Messages from "./Messages";
 import {
   getUiSoundsEnabled,
+  getUiMusicEnabled,
   getUiSoundVolume,
   getUiMusicVolume,
   playUiSound,
   saveUiMusicVolume,
+  setUiMusicEnabled,
   setUiMusicVolume,
   setUiSoundVolume,
   setUiSoundsEnabled,
   startUiMusic,
   stopUiMusic,
 } from "./uiSounds";
+import "./app-polish.css";
 
 const navigation = [
   { id: "home", icon: "⌂", label: "Home" },
@@ -151,7 +154,8 @@ function App() {
   const [uiSoundsEnabled, setUiSoundsEnabledState] = useState(getUiSoundsEnabled);
   const [uiSoundVolume, setUiSoundVolumeState] = useState(getUiSoundVolume);
   const [uiMusicVolume, setUiMusicVolumeState] = useState(getUiMusicVolume);
-  const [uiMusicEnabled, setUiMusicEnabledState] = useState(false);
+  const [uiMusicEnabled, setUiMusicEnabledState] = useState(getUiMusicEnabled);
+  const musicStartedRef = useRef(false);
   const [musicNotice, setMusicNotice] = useState("");
   const [avatarSaving, setAvatarSaving] = useState(false);
   const [avatarError, setAvatarError] = useState("");
@@ -223,6 +227,27 @@ const [avatarFile, setAvatarFile] = useState(null);
   useEffect(() => () => stopUiMusic(), []);
 
   useEffect(() => {
+    if (!uiMusicEnabled || musicStartedRef.current) return undefined;
+
+    const startAfterInteraction = () => {
+      if (musicStartedRef.current || !getUiMusicEnabled()) return;
+      if (startUiMusic(uiMusicVolume)) {
+        musicStartedRef.current = true;
+        setMusicNotice("Deine EssenPlan-Musik läuft.");
+        window.removeEventListener("pointerdown", startAfterInteraction);
+        window.removeEventListener("keydown", startAfterInteraction);
+      }
+    };
+
+    window.addEventListener("pointerdown", startAfterInteraction, { passive: true });
+    window.addEventListener("keydown", startAfterInteraction);
+    return () => {
+      window.removeEventListener("pointerdown", startAfterInteraction);
+      window.removeEventListener("keydown", startAfterInteraction);
+    };
+  }, [uiMusicEnabled, uiMusicVolume]);
+
+  useEffect(() => {
     const viewport = window.visualViewport;
     if (!viewport) return undefined;
 
@@ -271,19 +296,26 @@ const [avatarFile, setAvatarFile] = useState(null);
   function handleDashboardClick(event) {
     const button = event.target.closest("button, a, [role='button']");
     if (!button || button.disabled || button.dataset.noSound === "true") return;
-    playSound("tap");
+    const soundsLikeSelection = button.matches(
+      ".nav-item, .plan-supermarket, .plan-day, .plan-meal, .plan-option, .plan-appliance, .plan-extra, .plan-friend"
+    );
+    playSound(soundsLikeSelection ? "select" : "tap");
   }
 
   function toggleUiMusic() {
     if (uiMusicEnabled) {
       stopUiMusic();
+      musicStartedRef.current = false;
       setUiMusicEnabledState(false);
+      setUiMusicEnabled(false);
       setMusicNotice("Hintergrundmusik ist ausgeschaltet.");
       return;
     }
 
     if (startUiMusic(uiMusicVolume)) {
+      musicStartedRef.current = true;
       setUiMusicEnabledState(true);
+      setUiMusicEnabled(true);
       setMusicNotice("Hintergrundmusik läuft. Du kannst sie jederzeit wieder ausschalten.");
     } else {
       setMusicNotice("Dein Browser unterstützt die optionale Hintergrundmusik leider nicht.");
@@ -609,14 +641,11 @@ async function startPlanning() {
 
 
   useEffect(() => {
-    let mounted = true;
-
     async function loadSession() {
       const { data } = await supabase.auth.getSession();
-      if (mounted) {
-        setUser(data.session?.user ?? null);
-        setLoading(false);
-      }
+      setUser(data.session?.user ?? null);
+      setUiMusicEnabledState(getUiMusicEnabled());
+      setLoading(false);
     }
 
     loadSession();
@@ -625,11 +654,15 @@ async function startPlanning() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
+      setUiMusicEnabledState(getUiMusicEnabled());
+      if (!session?.user) {
+        stopUiMusic();
+        musicStartedRef.current = false;
+      }
       setLoading(false);
     });
 
     return () => {
-      mounted = false;
       subscription.unsubscribe();
     };
   }, []);
@@ -829,7 +862,7 @@ setShowTasteProfile(
       setError("Abmelden fehlgeschlagen: " + error.message);
     } else {
       stopUiMusic();
-      setUiMusicEnabledState(false);
+      musicStartedRef.current = false;
       setActivePage("home");
       setMode("login");
       setPassword("");
@@ -2980,7 +3013,7 @@ function renderPlan() {
             <span className="settings-icon">♫</span>
             <div>
               <h2>App-Sounds</h2>
-              <p>Dezente Töne für Aktionen wie Speichern, Abhaken und Rezeptbewertungen.</p>
+              <p>Warme, kurze Töne für Navigation, Auswahl und kleine Erfolge.</p>
             </div>
           </div>
           <div className="sound-settings-actions">
@@ -3008,7 +3041,7 @@ function renderPlan() {
             <span>Lautstärke</span>
             <input
               type="range"
-              min="0.1"
+              min="0"
               max="1"
               step="0.05"
               value={uiSoundVolume}
@@ -3024,7 +3057,7 @@ function renderPlan() {
             <span className="settings-icon">♫</span>
             <div>
               <h2>Hintergrundmusik</h2>
-              <p>Eine ruhige, selbst erzeugte Melodie. Sie startet nur, wenn du sie einschaltest.</p>
+              <p>Eine ruhige, selbst erzeugte Melodie. Sie startet nach deiner ersten Interaktion und spielt beim Seitenwechsel weiter.</p>
             </div>
           </div>
           <div className="music-settings-actions">
@@ -3035,13 +3068,14 @@ function renderPlan() {
               <span>Musiklautstärke</span>
               <input
                 type="range"
-                min="0.02"
-                max="0.35"
-                step="0.01"
+                min="0"
+                max="1"
+                step="0.05"
                 value={uiMusicVolume}
                 onChange={(event) => updateUiMusicVolume(event.target.value)}
                 aria-label="Lautstärke der Hintergrundmusik"
               />
+              <small>{Math.round(uiMusicVolume * 100)}%</small>
             </label>
           </div>
           {musicNotice && <p className="avatar-feedback" role="status">{musicNotice}</p>}
