@@ -222,6 +222,34 @@ const [avatarFile, setAvatarFile] = useState(null);
 
   useEffect(() => () => stopUiMusic(), []);
 
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    if (!viewport) return undefined;
+
+    const updateNavigationOffset = () => {
+      const bottomOffset = Math.max(
+        0,
+        window.innerHeight - viewport.offsetTop - viewport.height
+      );
+      document.documentElement.style.setProperty(
+        "--app-visual-viewport-bottom",
+        `${bottomOffset}px`
+      );
+    };
+
+    updateNavigationOffset();
+    viewport.addEventListener("resize", updateNavigationOffset);
+    viewport.addEventListener("scroll", updateNavigationOffset);
+    window.addEventListener("resize", updateNavigationOffset);
+
+    return () => {
+      viewport.removeEventListener("resize", updateNavigationOffset);
+      viewport.removeEventListener("scroll", updateNavigationOffset);
+      window.removeEventListener("resize", updateNavigationOffset);
+      document.documentElement.style.removeProperty("--app-visual-viewport-bottom");
+    };
+  }, []);
+
   function updatePlan(key, value) {
     setPlanData((current) => ({
       ...current,

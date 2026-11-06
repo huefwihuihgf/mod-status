@@ -356,7 +356,7 @@ button {
 .bottom-navigation {
   position: fixed;
   z-index: 20;
-  bottom: 0;
+  bottom: var(--app-visual-viewport-bottom, 0px);
   left: 0;
   right: 0;
   min-height: 76px;
