@@ -150,6 +150,7 @@ function App() {
   const [favorites, setFavorites] = useState([]);
   const [savedRecipes, setSavedRecipes] = useState([]);
   const [dislikes, setDislikes] = useState([]);
+  const [recipeFeedback, setRecipeFeedback] = useState({ likes: [], dislikes: [] });
   const [savingTaste, setSavingTaste] = useState(false);
   const [tasteError, setTasteError] = useState("");
   const [avatarPath, setAvatarPath] = useState(null);
@@ -160,6 +161,13 @@ const [avatarFile, setAvatarFile] = useState(null);
   const [planStep, setPlanStep] = useState(0);
   const [planningLoading, setPlanningLoading] = useState(false);
   const [planFinished, setPlanFinished] = useState(false);
+  const [recipeSearchMode, setRecipeSearchMode] = useState(false);
+  const [recipeSearchPlan, setRecipeSearchPlan] = useState(null);
+  const [recipeSearchQuery, setRecipeSearchQuery] = useState("");
+  const [recipeSearchServings, setRecipeSearchServings] = useState(2);
+  const [recipeSearchBudget, setRecipeSearchBudget] = useState(15);
+  const [recipeSearchLoading, setRecipeSearchLoading] = useState(false);
+  const [recipeSearchError, setRecipeSearchError] = useState("");
   const [generatedRecipes, setGeneratedRecipes] = useState([]);
   const [recipeGenerationLoading, setRecipeGenerationLoading] = useState(false);
   const [recipeGenerationError, setRecipeGenerationError] = useState("");
@@ -184,6 +192,12 @@ const [avatarFile, setAvatarFile] = useState(null);
     extras: [],
   });
 
+  useEffect(() => {
+    if (activePage === "plan" && !planFinished) {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, [planStep, activePage, planFinished]);
+
   function updatePlan(key, value) {
     setPlanData((current) => ({
       ...current,
@@ -200,9 +214,10 @@ const [avatarFile, setAvatarFile] = useState(null);
     }));
   }
 
-  async function requestRecipeSuggestions(day, excludedNames = []) {
+  async function requestRecipeSuggestions(day, excludedNames = [], searchRequest = null) {
+    const requestPlan = searchRequest?.plan || planData;
     const selectedFriends = planFriends.filter((friend) =>
-      planData.friends.includes(friend.user_id)
+      requestPlan.friends.includes(friend.user_id)
     );
     const friendFavorites = selectedFriends.flatMap((friend) =>
       Array.isArray(friend.taste_profile?.favorites)
@@ -217,41 +232,48 @@ const [avatarFile, setAvatarFile] = useState(null);
     const { data: storeProducts, error: productError } = await supabase
       .from("store_products")
       .select("product_name")
-      .eq("store", planData.supermarket)
+      .eq("store", requestPlan.supermarket)
       .limit(50);
 
     if (productError) {
       console.error("Produkt-Hinweise konnten nicht geladen werden:", productError);
-      setRecipeStoreNotice(
-        "Der Produktkatalog ist gerade nicht verfügbar. Die Rezeptideen berücksichtigen deshalb nur den ausgewählten Markt allgemein."
-      );
+      if (!searchRequest) {
+        setRecipeStoreNotice(
+          "Der Produktkatalog ist gerade nicht verfügbar. Die Rezeptideen berücksichtigen deshalb nur den ausgewählten Markt allgemein."
+        );
+      }
     } else if (storeProducts?.length) {
-      setRecipeStoreNotice(
-        `${storeProducts.length} gespeicherte Produktnamen wurden als Orientierung berücksichtigt. Das ist keine Prüfung von Preisen oder Filialbestand.`
-      );
+      if (!searchRequest) {
+        setRecipeStoreNotice(
+          `${storeProducts.length} gespeicherte Produktnamen wurden als Orientierung berücksichtigt. Das ist keine Prüfung von Preisen oder Filialbestand.`
+        );
+      }
     } else {
-      setRecipeStoreNotice(
-        `Für ${planData.supermarket} liegen keine Produktnamen im Katalog vor. Der Markt dient nur als allgemeine Orientierung, nicht als Verfügbarkeitsnachweis.`
-      );
+      if (!searchRequest) {
+        setRecipeStoreNotice(
+          `Für ${requestPlan.supermarket} liegen keine Produktnamen im Katalog vor. Der Markt dient nur als allgemeine Orientierung, nicht als Verfügbarkeitsnachweis.`
+        );
+      }
     }
 
     const { data, error } = await supabase.functions.invoke("generate-recipes", {
       body: {
         plan: {
-          supermarket: planData.supermarket,
-          branch: planData.branch,
-          adults: Number(planData.adults),
-          children: Number(planData.children),
-          days: day ? [day] : planData.days,
-          meals: planData.meals,
-          budget: Number(planData.budget),
-          diet: planData.diet,
-          allergies: planData.allergies,
-          appliances: planData.appliances,
-          extras: planData.extras,
-          friendsCount: planData.friends.length,
+          supermarket: requestPlan.supermarket,
+          branch: requestPlan.branch,
+          adults: Number(requestPlan.adults),
+          children: Number(requestPlan.children),
+          days: day ? [day] : requestPlan.days,
+          meals: requestPlan.meals,
+          budget: Number(requestPlan.budget),
+          diet: requestPlan.diet,
+          allergies: requestPlan.allergies,
+          appliances: requestPlan.appliances,
+          extras: requestPlan.extras,
+          friendsCount: requestPlan.friends.length,
         },
         day,
+        searchQuery: searchRequest?.query,
         taste: {
           favorites: [...new Set([...favorites, ...friendFavorites]
             .filter((value) => typeof value === "string")
@@ -259,6 +281,8 @@ const [avatarFile, setAvatarFile] = useState(null);
           dislikes: [...new Set([...dislikes, ...friendDislikes]
             .filter((value) => typeof value === "string")
             .map((value) => value.slice(0, 100)))].slice(0, 50),
+          recipeLikes: recipeFeedback.likes.slice(-50),
+          recipeDislikes: recipeFeedback.dislikes.slice(-50),
         },
         storeProducts: (storeProducts || []).map((product) => product.product_name),
         excludedNames,
@@ -277,8 +301,14 @@ const [avatarFile, setAvatarFile] = useState(null);
       );
     }
 
-    if (!Array.isArray(data?.recipes) || data.recipes.length !== (day ? 2 : planData.days.length * 2)) {
-      throw new Error("Die KI hat nicht genau zwei Rezeptideen pro ausgewähltem Tag geliefert. Bitte versuche es erneut.");
+    const recipesPerDay = Math.max(2, requestPlan.meals.length);
+    const expectedCount = searchRequest
+      ? 1
+      : (day ? 1 : requestPlan.days.length) * recipesPerDay;
+    if (!Array.isArray(data?.recipes) || data.recipes.length !== expectedCount) {
+      throw new Error(searchRequest
+        ? "Die KI hat kein passendes Rezept zurückgegeben. Bitte versuche es erneut."
+        : "Die KI hat nicht die erwartete Anzahl an Rezepten für deine ausgewählten Mahlzeiten geliefert.");
     }
 
     return data.recipes;
@@ -343,9 +373,59 @@ const [avatarFile, setAvatarFile] = useState(null);
     }
   }
 
-  
+  async function searchForRecipe(event) {
+    event.preventDefault();
+    const query = recipeSearchQuery.trim();
+    if (query.length < 2) {
+      setRecipeSearchError("Bitte gib mindestens zwei Zeichen für dein Gericht ein.");
+      return;
+    }
+
+    const servings = Number(recipeSearchServings);
+    const budget = Number(recipeSearchBudget);
+    if (!Number.isInteger(servings) || servings < 1 || servings > 30) {
+      setRecipeSearchError("Bitte gib eine Personenzahl zwischen 1 und 30 ein.");
+      return;
+    }
+    if (!Number.isFinite(budget) || budget <= 0 || budget > 10000) {
+      setRecipeSearchError("Bitte gib ein gültiges Budget ein.");
+      return;
+    }
+
+    const searchPlan = {
+      ...planData,
+      adults: servings,
+      children: 0,
+      friends: [],
+      days: ["Montag"],
+      meals: ["Frühstück", "Mittagessen", "Abendessen"],
+      budget,
+    };
+
+    setRecipeSearchError("");
+    setRecipeSearchLoading(true);
+    setRecipeGenerationError("");
+    try {
+      const suggestions = await requestRecipeSuggestions(undefined, [], {
+        query,
+        plan: searchPlan,
+      });
+      setRecipeSearchPlan(searchPlan);
+      setGeneratedRecipes(suggestions);
+      setPlanFinished(true);
+    } catch (generationError) {
+      console.error("Rezeptsuche konnte nicht ausgeführt werden:", generationError);
+      setRecipeSearchError(generationError.message || "Das Rezept konnte nicht gefunden werden.");
+    } finally {
+      setRecipeSearchLoading(false);
+    }
+  }
+
 async function startPlanning() {
   setActivePage("plan");
+  setRecipeSearchMode(false);
+  setRecipeSearchPlan(null);
+  setPlanFinished(false);
   setPlanningLoading(true);
   setPlanFriendsLoading(true);
 
@@ -474,6 +554,7 @@ async function startPlanning() {
         setShowTasteProfile(false);
         setProfileLoading(false);
         setSavedRecipes([]);
+        setRecipeFeedback({ likes: [], dislikes: [] });
         return;
       }
 
@@ -499,6 +580,14 @@ async function startPlanning() {
       setFavorites(profile.favorites || []);
       setSavedRecipes(profile.saved_recipes || []);
       setDislikes(profile.dislikes || []);
+      setRecipeFeedback({
+        likes: Array.isArray(profile.recipe_feedback?.likes)
+          ? profile.recipe_feedback.likes.filter((name) => typeof name === "string").slice(-50)
+          : [],
+        dislikes: Array.isArray(profile.recipe_feedback?.dislikes)
+          ? profile.recipe_feedback.dislikes.filter((name) => typeof name === "string").slice(-50)
+          : [],
+      });
 
       setAvatarPath(data?.avatar_path || null);
 
@@ -687,6 +776,7 @@ setShowTasteProfile(
           favorites,
           saved_recipes: savedRecipes,
           dislikes,
+          recipe_feedback: recipeFeedback,
           updated_at: new Date().toISOString(),
         },
         taste_profile_completed: true,
@@ -857,9 +947,10 @@ setShowTasteProfile(
         image_license_url: recipe.imageLicenseUrl || "",
         servings: Math.max(
           1,
-          Number(planData.adults || 0) +
-            Number(planData.children || 0) +
-            (planData.friends || []).length
+          Number(recipe.servings) ||
+            Number(planData.adults || 0) +
+              Number(planData.children || 0) +
+              (planData.friends || []).length
         ),
         instructions: recipe.instructions,
         ingredients: ingredients.map((ingredient) => ({
@@ -984,6 +1075,7 @@ setShowTasteProfile(
           favorites,
           saved_recipes: updatedRecipes,
           dislikes,
+          recipe_feedback: recipeFeedback,
           updated_at: new Date().toISOString(),
         },
       })
@@ -994,6 +1086,56 @@ setShowTasteProfile(
     if (error) throw new Error(`Favorit konnte nicht gespeichert werden: ${error.message}`);
 
     setSavedRecipes(updatedRecipes);
+  }
+
+  async function saveRecipeFeedback(recipeName, rating) {
+    if (!user) throw new Error("Zum Bewerten eines Rezepts musst du angemeldet sein.");
+    if (!["like", "dislike"].includes(rating)) {
+      throw new Error("Diese Rezeptbewertung ist ungültig.");
+    }
+
+    const recipeKey = normalizeShoppingText(recipeName);
+    const currentRating = recipeFeedback.likes.some(
+      (name) => normalizeShoppingText(name) === recipeKey
+    )
+      ? "like"
+      : recipeFeedback.dislikes.some(
+          (name) => normalizeShoppingText(name) === recipeKey
+        )
+        ? "dislike"
+        : "";
+    const nextRating = currentRating === rating ? "" : rating;
+    const nextFeedback = {
+      likes: recipeFeedback.likes.filter(
+        (name) => normalizeShoppingText(name) !== recipeKey
+      ),
+      dislikes: recipeFeedback.dislikes.filter(
+        (name) => normalizeShoppingText(name) !== recipeKey
+      ),
+    };
+
+    if (nextRating === "like") nextFeedback.likes.push(recipeName.slice(0, 120));
+    if (nextRating === "dislike") nextFeedback.dislikes.push(recipeName.slice(0, 120));
+    nextFeedback.likes = [...new Set(nextFeedback.likes)].slice(-50);
+    nextFeedback.dislikes = [...new Set(nextFeedback.dislikes)].slice(-50);
+
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        taste_profile: {
+          favorites,
+          saved_recipes: savedRecipes,
+          dislikes,
+          recipe_feedback: nextFeedback,
+          updated_at: new Date().toISOString(),
+        },
+      })
+      .eq("id", user.id)
+      .select("id")
+      .single();
+
+    if (error) throw new Error(`Rezeptbewertung konnte nicht gespeichert werden: ${error.message}`);
+    setRecipeFeedback(nextFeedback);
   }
 
   const displayName =
@@ -1762,10 +1904,13 @@ function renderPlan() {
   if (planFinished) {
     return (
       <RecipeResults
-        planData={planData}
+        planData={recipeSearchMode ? recipeSearchPlan || planData : planData}
         recipes={generatedRecipes}
         savedRecipes={savedRecipes}
-        onRefresh={refreshRecipesForDay}
+        recipeFeedback={recipeFeedback}
+        onRecipeFeedback={saveRecipeFeedback}
+        singleRecipeSearch={recipeSearchMode}
+        onRefresh={recipeSearchMode ? undefined : refreshRecipesForDay}
         onSaveShoppingList={saveRecipeShoppingList}
         onAddRecipeToShoppingList={addRecipeToShoppingList}
         onToggleSavedRecipe={toggleSavedRecipe}
@@ -1776,9 +1921,93 @@ function renderPlan() {
         storeCatalogNotice={recipeStoreNotice}
         onEdit={() => {
           setPlanFinished(false);
-          setPlanStep(0);
+          if (!recipeSearchMode) setPlanStep(0);
         }}
       />
+    );
+  }
+
+  if (recipeSearchMode) {
+    if (recipeSearchLoading) {
+      return (
+        <RecipeGeneration
+          title="Dein Wunschrezept wird gesucht"
+          loadingMessage={`Gemini sucht nach „${recipeSearchQuery.trim()}“ und passt das Rezept an deine Angaben an.`}
+        />
+      );
+    }
+
+    return (
+      <section className="page-content plan-page recipe-search-page">
+        <button
+          type="button"
+          className="recipe-back"
+          onClick={() => {
+            setRecipeSearchMode(false);
+            setRecipeSearchError("");
+          }}
+        >
+          ← Zurück zur Wochenplanung
+        </button>
+        <div className="recipe-search-hero">
+          <div className="recipe-search-illustration" aria-hidden="true">🔎🥞</div>
+          <span className="small-eyebrow">DEIN WUNSCHREZEPT</span>
+          <h1>Wonach hast du Appetit?</h1>
+          <p>Beschreibe ein Gericht und die KI stellt ein passendes Rezept zusammen.</p>
+        </div>
+        <form className="recipe-search-form" onSubmit={searchForRecipe}>
+          <label>
+            Welches Gericht suchst du?
+            <input
+              autoFocus
+              type="search"
+              maxLength={100}
+              value={recipeSearchQuery}
+              onChange={(event) => setRecipeSearchQuery(event.target.value)}
+              placeholder="Zum Beispiel: fluffige Pfannkuchen"
+            />
+          </label>
+          <div className="recipe-search-fields">
+            <label>
+              Für wie viele Personen?
+              <input
+                type="number"
+                min="1"
+                max="30"
+                value={recipeSearchServings}
+                onChange={(event) => setRecipeSearchServings(event.target.value)}
+              />
+            </label>
+            <label>
+              Budget für dieses Gericht
+              <span className="recipe-search-budget-input">
+                <input
+                  type="number"
+                  min="1"
+                  max="10000"
+                  step="1"
+                  value={recipeSearchBudget}
+                  onChange={(event) => setRecipeSearchBudget(event.target.value)}
+                />
+                <span>€</span>
+              </span>
+            </label>
+          </div>
+          <div className="recipe-search-context">
+            <span>🛒 {planData.supermarket}</span>
+            <span>🥗 {planData.diet.length ? planData.diet.join(", ") : "Keine Ernährungsweise gewählt"}</span>
+            <span>♨ {planData.appliances.join(", ") || "Küchenausstattung nicht angegeben"}</span>
+          </div>
+          {recipeSearchError && <p className="recipe-action-error" role="alert">{recipeSearchError}</p>}
+          <button className="recipe-search-submit" type="submit" disabled={!recipeSearchQuery.trim()}>
+            Rezept mit KI suchen <span aria-hidden="true">→</span>
+          </button>
+          <p className="recipe-search-note">
+            Deine hinterlegten Ernährungswünsche, Allergiehinweise und Küchengeräte werden berücksichtigt.
+            Prüfe Zutaten und Verpackungshinweise bei Allergien trotzdem selbst.
+          </p>
+        </form>
+      </section>
     );
   }
 
@@ -1803,6 +2032,26 @@ function renderPlan() {
           <p>Wir stimmen deine Rezepte auf deinen Alltag und deine Wünsche ab.</p>
         </div>
       </div>
+
+      <button
+        type="button"
+        className="plan-recipe-search-entry"
+        onClick={() => {
+          setRecipeSearchServings(Math.max(1, Number(planData.adults) + Number(planData.children)));
+          setRecipeSearchBudget(15);
+          setRecipeSearchPlan(null);
+          setRecipeSearchMode(true);
+          setRecipeSearchError("");
+          setPlanFinished(false);
+        }}
+      >
+        <span className="plan-recipe-search-icon">⌕</span>
+        <span>
+          <strong>Such lieber ein bestimmtes Rezept?</strong>
+          <small>Gib ein Gericht, die Personenzahl und dein Budget ein.</small>
+        </span>
+        <span className="plan-recipe-search-arrow">→</span>
+      </button>
 
       <div className="plan-progress-card">
         <div className="plan-progress-top">

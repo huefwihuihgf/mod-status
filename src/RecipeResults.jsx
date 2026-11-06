@@ -20,6 +20,9 @@ export default function RecipeResults({
   planData,
   recipes = [],
   savedRecipes = [],
+  recipeFeedback = { likes: [], dislikes: [] },
+  onRecipeFeedback,
+  singleRecipeSearch = false,
   onEdit,
   onRefresh,
   onSaveShoppingList,
@@ -35,6 +38,8 @@ export default function RecipeResults({
   const [activeDay, setActiveDay] = useState("Alle");
   const [addingRecipeId, setAddingRecipeId] = useState(null);
   const [savingFavoriteId, setSavingFavoriteId] = useState(null);
+  const [savingFeedbackId, setSavingFeedbackId] = useState(null);
+  const [servingCount, setServingCount] = useState(1);
   const [recipeActionMessage, setRecipeActionMessage] = useState("");
   const [recipeActionError, setRecipeActionError] = useState("");
   const [favoriteActionError, setFavoriteActionError] = useState("");
@@ -119,6 +124,30 @@ export default function RecipeResults({
     }
   }
 
+  function openRecipe(recipe) {
+    setServingCount(Math.max(1, Number(recipe.servings) || people));
+    setSelectedRecipe(recipe);
+  }
+
+  function getRecipeRating(recipe) {
+    const key = normalize(recipe.name);
+    if (recipeFeedback.likes.some((name) => normalize(name) === key)) return "like";
+    if (recipeFeedback.dislikes.some((name) => normalize(name) === key)) return "dislike";
+    return "";
+  }
+
+  async function rateRecipe(recipe, rating) {
+    setSavingFeedbackId(recipe.id);
+    setFavoriteActionError("");
+    try {
+      await onRecipeFeedback?.(recipe.name, rating);
+    } catch (error) {
+      setFavoriteActionError(error.message || "Deine Bewertung konnte nicht gespeichert werden.");
+    } finally {
+      setSavingFeedbackId(null);
+    }
+  }
+
   function showOtherRecipes(day) {
     const currentNames = schedule
       .filter((item) => item.day === day)
@@ -127,6 +156,18 @@ export default function RecipeResults({
   }
 
   if (selectedRecipe) {
+    const baseServings = Math.max(1, Number(selectedRecipe.servings) || people);
+    const servingMultiplier = servingCount / baseServings;
+    const scaledIngredients = selectedRecipe.ingredients.map((ingredient) => ({
+      ...ingredient,
+      amount: Number((Number(ingredient.amount) * servingMultiplier).toFixed(3)),
+    }));
+    const adjustedRecipe = {
+      ...selectedRecipe,
+      servings: servingCount,
+      ingredients: scaledIngredients,
+    };
+
     return (
       <section className="page-content recipe-page">
         <button
@@ -156,7 +197,7 @@ export default function RecipeResults({
 
             <div className="recipe-meta">
               <span>◷ {selectedRecipe.time} Minuten</span>
-              <span>♧ {people} Personen</span>
+              <span>♧ {servingCount} Personen</span>
               {selectedRecipe.equipment?.length > 0 && (
                 <span>♨ Zubereitung mit: {selectedRecipe.equipment.join(", ")}</span>
               )}
@@ -174,21 +215,74 @@ export default function RecipeResults({
               <button
                 type="button"
                 className="recipe-add-shopping-button"
-                onClick={() => addRecipeToShoppingList(selectedRecipe)}
+                onClick={() => addRecipeToShoppingList(adjustedRecipe)}
                 disabled={addingRecipeId === selectedRecipe.id}
               >
                 {addingRecipeId === selectedRecipe.id
                   ? "Wird hinzugefügt ..."
                   : "Zutaten zur Einkaufsliste"}
               </button>
+              <button
+                type="button"
+                className={`recipe-feedback-button ${getRecipeRating(selectedRecipe) === "like" ? "selected" : ""}`}
+                onClick={() => rateRecipe(selectedRecipe, "like")}
+                disabled={savingFeedbackId === selectedRecipe.id}
+                aria-pressed={getRecipeRating(selectedRecipe) === "like"}
+              >
+                👍 Gefällt mir
+              </button>
+              <button
+                type="button"
+                className={`recipe-feedback-button ${getRecipeRating(selectedRecipe) === "dislike" ? "selected dislike" : ""}`}
+                onClick={() => rateRecipe(selectedRecipe, "dislike")}
+                disabled={savingFeedbackId === selectedRecipe.id}
+                aria-pressed={getRecipeRating(selectedRecipe) === "dislike"}
+              >
+                👎 Nicht meins
+              </button>
             </div>
+            <label className="recipe-serving-editor">
+              <span>
+                <strong>Portionen anpassen</strong>
+                <small>Zutatenmengen werden passend umgerechnet.</small>
+              </span>
+              <span className="recipe-serving-control">
+                <button
+                  type="button"
+                  aria-label="Eine Portion weniger"
+                  onClick={() => setServingCount((count) => Math.max(1, count - 1))}
+                >
+                  −
+                </button>
+                <input
+                  type="number"
+                  min="1"
+                  max="30"
+                  value={servingCount}
+                  onChange={(event) => {
+                    const value = Number(event.target.value);
+                    if (Number.isInteger(value) && value >= 1 && value <= 30) {
+                      setServingCount(value);
+                    }
+                  }}
+                  aria-label="Anzahl der Portionen"
+                />
+                <button
+                  type="button"
+                  aria-label="Eine Portion mehr"
+                  onClick={() => setServingCount((count) => Math.min(30, count + 1))}
+                >
+                  +
+                </button>
+              </span>
+            </label>
             {recipeActionMessage && <p className="recipe-action-message" role="status">{recipeActionMessage}</p>}
             {recipeActionError && <p className="recipe-action-error" role="alert">{recipeActionError}</p>}
             {favoriteActionError && <p className="recipe-action-error" role="alert">{favoriteActionError}</p>}
 
-            <h2>Zutaten für {people} Personen</h2>
+            <h2>Zutaten für {servingCount} Personen</h2>
             <div className="recipe-ingredients">
-              {selectedRecipe.ingredients.map((ingredient, index) => (
+              {scaledIngredients.map((ingredient, index) => (
                 <div className="recipe-ingredient" key={index}>
                   <span>{ingredient.name}</span>
                   <strong>
@@ -223,10 +317,12 @@ export default function RecipeResults({
     <section className="page-content recipe-page">
       <div className="recipe-results-header">
         <div>
-          <span className="small-eyebrow">DEIN ESSENPLAN</span>
-          <h1>Deine Rezeptideen 🍊</h1>
+          <span className="small-eyebrow">{singleRecipeSearch ? "DEINE REZEPTSUCHE" : "DEIN ESSENPLAN"}</span>
+          <h1>{singleRecipeSearch ? "Dein Wunschrezept 🍊" : "Deine Rezeptideen 🍊"}</h1>
           <p className="page-description">
-            Deine Vorschläge wurden passend zu deinen Angaben mit KI erstellt.
+            {singleRecipeSearch
+              ? "Dein Rezept wurde passend zu deinem Suchwunsch und deinen Angaben erstellt."
+              : "Deine Vorschläge wurden passend zu deinen Angaben mit KI erstellt."}
           </p>
         </div>
 
@@ -244,7 +340,7 @@ export default function RecipeResults({
 
       <div className="recipe-shopping-save">
         <div>
-          <strong>Alles für deinen Essensplan auf einmal einkaufen</strong>
+          <strong>{singleRecipeSearch ? "Alles für dein Rezept einkaufen" : "Alles für deinen Essensplan auf einmal einkaufen"}</strong>
           <p>
             {shoppingIngredients.length} Zutaten · gleiche Zutaten und Einheiten
             werden zusammengezählt
@@ -289,7 +385,7 @@ export default function RecipeResults({
         </div>
       </div>
 
-      <div className="recipe-day-filter">
+      {!singleRecipeSearch && <div className="recipe-day-filter">
         <button
           className={activeDay === "Alle" ? "active" : ""}
           onClick={() => setActiveDay("Alle")}
@@ -305,7 +401,7 @@ export default function RecipeResults({
             {day}
           </button>
         ))}
-      </div>
+      </div>}
 
       {visibleSchedule.length === 0 ? (
         <div className="recipe-empty">
@@ -328,11 +424,13 @@ export default function RecipeResults({
               <section className="recipe-day-section" key={day}>
                 <div className="recipe-day-heading">
                   <div>
-                    <span className="small-eyebrow">DEIN TAG</span>
-                    <h2>{day}</h2>
-                    <p>{dayRecipes.length} von 2 Rezeptideen</p>
+                    <span className="small-eyebrow">{singleRecipeSearch ? "DEIN WUNSCHREZEPT" : "DEIN TAG"}</span>
+                    <h2>{singleRecipeSearch ? "Rezept gefunden" : day}</h2>
+                    <p>{singleRecipeSearch
+                      ? "Passend zu deinem Wunschgericht"
+                      : `${dayRecipes.length} Rezept${dayRecipes.length === 1 ? "" : "e"} für ${planData.meals.length} ausgewählte Mahlzeit${planData.meals.length === 1 ? "" : "en"}`}</p>
                   </div>
-                  <button
+                  {!singleRecipeSearch && <button
                     type="button"
                     className="recipe-refresh-button"
                     onClick={() => showOtherRecipes(day)}
@@ -341,7 +439,7 @@ export default function RecipeResults({
                     {refreshingDay === day
                       ? "Neue Ideen werden erstellt ..."
                       : "↻ Andere Rezepte anzeigen"}
-                  </button>
+                  </button>}
                 </div>
                 {refreshingDay === day && (
                   <RecipeGeneration compact />
@@ -371,7 +469,9 @@ export default function RecipeResults({
                       />
 
                       <div className="recipe-card-content">
-                        <div className="recipe-card-day">{item.day} · {item.meal}</div>
+                        <div className="recipe-card-day">
+                          {singleRecipeSearch ? item.meal : `${item.day} · ${item.meal}`}
+                        </div>
                         <h2>{item.recipe.name}</h2>
                         <p>{item.recipe.description}</p>
                         {item.recipe.equipment?.length > 0 && (
@@ -384,12 +484,34 @@ export default function RecipeResults({
                           <span>◷ {item.recipe.time} Min.</span>
                           <button
                             type="button"
-                            onClick={() => setSelectedRecipe(item.recipe)}
+                            onClick={() => openRecipe(item.recipe)}
                           >
                             Rezept ansehen →
                           </button>
                         </div>
                         <div className="recipe-card-actions">
+                          <div className="recipe-feedback-actions" aria-label={`Bewertung für ${item.recipe.name}`}>
+                            <button
+                              type="button"
+                              className={getRecipeRating(item.recipe) === "like" ? "selected" : ""}
+                              aria-label={`${item.recipe.name} gefällt mir`}
+                              aria-pressed={getRecipeRating(item.recipe) === "like"}
+                              disabled={savingFeedbackId === item.recipe.id}
+                              onClick={() => rateRecipe(item.recipe, "like")}
+                            >
+                              👍
+                            </button>
+                            <button
+                              type="button"
+                              className={getRecipeRating(item.recipe) === "dislike" ? "selected dislike" : ""}
+                              aria-label={`${item.recipe.name} gefällt mir nicht`}
+                              aria-pressed={getRecipeRating(item.recipe) === "dislike"}
+                              disabled={savingFeedbackId === item.recipe.id}
+                              onClick={() => rateRecipe(item.recipe, "dislike")}
+                            >
+                              👎
+                            </button>
+                          </div>
                           <button
                             type="button"
                             className="recipe-favorite-button"
@@ -423,6 +545,7 @@ export default function RecipeResults({
         KI-Vorschläge können Fehler enthalten. Preise und Filialverfügbarkeit
         werden nicht live geprüft. Bei Allergien bitte Zutaten und Verpackungshinweise
         selbst prüfen; eine KI-Filterung garantiert keine Allergiesicherheit.
+        Deine Rezeptbewertungen fließen in spätere Vorschläge ein.
       </div>
     </section>
   );

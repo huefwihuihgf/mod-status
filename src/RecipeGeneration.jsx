@@ -13,6 +13,8 @@ export default function RecipeGeneration({
   error = "",
   onRetry,
   retrying = false,
+  title,
+  loadingMessage,
 }) {
   const [messageIndex, setMessageIndex] = useState(0);
 
@@ -52,10 +54,10 @@ export default function RecipeGeneration({
 
       <span className="recipe-generation-eyebrow">ESSENPLAN · REZEPTKÜCHE</span>
       <h2>
-        {error ? "Das hat leider nicht geklappt" : "Deine Rezepte werden zusammengestellt"}
+        {error ? "Das hat leider nicht geklappt" : title || "Deine Rezepte werden zusammengestellt"}
       </h2>
       <p className="recipe-generation-message">
-        {error || progressMessages[messageIndex]}
+        {error || loadingMessage || progressMessages[messageIndex]}
       </p>
 
       {error ? (
