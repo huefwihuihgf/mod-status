@@ -3139,6 +3139,17 @@ function renderPlan() {
     lists: renderLists,
     settings: renderSettings,
   };
+  const pageTransitionKey = activePage === "plan"
+    ? [
+        activePage,
+        planStep,
+        planFinished,
+        recipeSearchMode,
+        recipeSearchLoading,
+        recipeGenerationLoading,
+        planningLoading,
+      ].join("-")
+    : activePage;
 
   return (
     <div className="dashboard" onClickCapture={handleDashboardClick}>
@@ -3171,7 +3182,11 @@ function renderPlan() {
         </div>
       </header>
 
-      <main className="main-content">{pageContent[activePage]()}</main>
+      <main className="main-content">
+        <div key={pageTransitionKey} className="page-transition-shell">
+          {pageContent[activePage]()}
+        </div>
+      </main>
 
       <nav className="bottom-navigation">
         {navigation.map((item) => (
