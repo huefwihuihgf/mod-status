@@ -2727,6 +2727,75 @@ button {
   font-size: 12px;
 }
 
+.sound-settings-panel {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+}
+
+.sound-settings-copy {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.sound-settings-copy .settings-icon {
+  flex: 0 0 auto;
+}
+
+.sound-settings-copy h2 {
+  margin: 0 0 5px;
+  color: #382f29;
+  font-family: 'Playfair Display', serif;
+  font-size: 20px;
+}
+
+.sound-settings-copy p {
+  margin: 0;
+  color: #898076;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.sound-settings-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.sound-toggle {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: #655b51;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.sound-toggle input {
+  width: 18px;
+  height: 18px;
+  accent-color: #e98b3c;
+}
+
+.sound-test-button {
+  border: 1px solid #f0d8c6;
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: #fff6ee;
+  color: #bd6b2e;
+  font-size: 11px;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.sound-test-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
 .account-danger-panel {
   margin-top: 26px;
   padding: 22px;
@@ -3157,6 +3226,11 @@ button {
     border-radius: 16px;
     font-size: 25px;
   }
+
+  .sound-settings-panel {
+    align-items: flex-start;
+    flex-direction: column;
+  }
 }
 
 @media (max-width: 480px) {
@@ -3220,5 +3294,10 @@ button {
 
   .friend-modal {
     padding: 20px;
+  }
+
+  .sound-settings-actions {
+    width: 100%;
+    justify-content: space-between;
   }
 }

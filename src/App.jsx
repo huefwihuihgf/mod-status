@@ -7,6 +7,11 @@ import LidlProducts from "./LidlProducts";
 import RecipeResults from "./RecipeResults";
 import RecipeGeneration from "./RecipeGeneration";
 import { ImageAttribution, RecipeImage } from "./RecipeImage";
+import {
+  getUiSoundsEnabled,
+  playUiSound,
+  setUiSoundsEnabled,
+} from "./uiSounds";
 
 const navigation = [
   { id: "home", icon: "⌂", label: "Home" },
@@ -134,6 +139,7 @@ function App() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [uiSoundsEnabled, setUiSoundsEnabledState] = useState(getUiSoundsEnabled);
 
   const [newItem, setNewItem] = useState("");
   const [items, setItems] = useState([]);
@@ -203,6 +209,17 @@ const [avatarFile, setAvatarFile] = useState(null);
       ...current,
       [key]: value,
     }));
+  }
+
+  function playSound(type) {
+    playUiSound(type, uiSoundsEnabled);
+  }
+
+  function toggleUiSounds() {
+    const enabled = !uiSoundsEnabled;
+    setUiSoundsEnabledState(enabled);
+    setUiSoundsEnabled(enabled);
+    if (enabled) playUiSound("success", true);
   }
 
   function togglePlanOption(key, value) {
@@ -643,6 +660,7 @@ setShowTasteProfile(
         } else {
           setMessage("Bitte prüfe deine E-Mails und bestätige deine Anmeldung.");
         }
+        playSound("success");
       } else {
         const { error } = await supabase.auth.signInWithPassword({
           email: email.trim(),
@@ -651,9 +669,11 @@ setShowTasteProfile(
 
         if (error) throw error;
         setMessage("Du bist erfolgreich angemeldet!");
+        playSound("success");
       }
     } catch (err) {
       setError(err.message || "Es ist ein Fehler aufgetreten.");
+      playSound("error");
     } finally {
       setSubmitting(false);
     }
@@ -836,8 +856,10 @@ setShowTasteProfile(
         return current.map((item) => (item.id === data.id ? data : item));
       });
       setNewItem("");
+      playSound("success");
     } catch (err) {
       setListError(`Artikel konnte nicht gespeichert werden: ${err.message}`);
+      playSound("error");
     }
   }
 
@@ -859,8 +881,10 @@ setShowTasteProfile(
       setItems((current) =>
         current.map((currentItem) => (currentItem.id === item.id ? data : currentItem))
       );
+      playSound(data.done ? "success" : "tap");
     } catch (err) {
       setListError(`Artikelstatus konnte nicht gespeichert werden: ${err.message}`);
+      playSound("error");
     } finally {
       setUpdatingItemId(null);
     }
@@ -880,8 +904,10 @@ setShowTasteProfile(
 
       if (error) throw error;
       setItems((current) => current.filter((item) => item.id !== id));
+      playSound("tap");
     } catch (err) {
       setListError(`Artikel konnte nicht gelöscht werden: ${err.message}`);
+      playSound("error");
     } finally {
       setUpdatingItemId(null);
     }
@@ -921,8 +947,10 @@ setShowTasteProfile(
       setListMessage(
         `Deine Einkaufsliste mit ${ingredients.length} zusammengefassten Zutaten wurde gespeichert.`
       );
+      playSound("success");
     } catch (err) {
       setListError(`Einkaufsliste konnte nicht gespeichert werden: ${err.message}`);
+      playSound("error");
     } finally {
       setListSaving(false);
     }
@@ -991,6 +1019,7 @@ setShowTasteProfile(
     ]);
     setSavedRecipesOpen(true);
     setListMessage(`${recipe.name} wurde bei deinen gespeicherten Rezepten abgelegt.`);
+    playSound("success");
     setPlanFinished(false);
     setActivePage("lists");
   }
@@ -1017,8 +1046,10 @@ setShowTasteProfile(
           ),
         }))
       );
+      playSound(data.done ? "success" : "tap");
     } catch (err) {
       setListError(`Zutat konnte nicht abgehakt werden: ${err.message}`);
+      playSound("error");
     } finally {
       setUpdatingItemId(null);
     }
@@ -1042,8 +1073,10 @@ setShowTasteProfile(
       setOpenRecipeInstructions((current) =>
         current.filter((id) => id !== recipeId)
       );
+      playSound("tap");
     } catch (err) {
       setListError(`Rezept konnte nicht gelöscht werden: ${err.message}`);
+      playSound("error");
     } finally {
       setUpdatingItemId(null);
     }
@@ -1086,6 +1119,7 @@ setShowTasteProfile(
     if (error) throw new Error(`Favorit konnte nicht gespeichert werden: ${error.message}`);
 
     setSavedRecipes(updatedRecipes);
+    playSound(wasSaved ? "tap" : "success");
   }
 
   async function saveRecipeFeedback(recipeName, rating) {
@@ -1136,6 +1170,7 @@ setShowTasteProfile(
 
     if (error) throw new Error(`Rezeptbewertung konnte nicht gespeichert werden: ${error.message}`);
     setRecipeFeedback(nextFeedback);
+    playSound(nextRating === "like" ? "like" : nextRating === "dislike" ? "dislike" : "tap");
   }
 
   const displayName =
@@ -1730,7 +1765,7 @@ setShowTasteProfile(
   }
 
   function renderFriends() {
-  return <Friends userId={user.id} />;
+  return <Friends userId={user.id} onPlaySound={playSound} />;
 }
 
     
@@ -1909,6 +1944,7 @@ function renderPlan() {
         savedRecipes={savedRecipes}
         recipeFeedback={recipeFeedback}
         onRecipeFeedback={saveRecipeFeedback}
+        onPlaySound={playSound}
         singleRecipeSearch={recipeSearchMode}
         onRefresh={recipeSearchMode ? undefined : refreshRecipesForDay}
         onSaveShoppingList={saveRecipeShoppingList}
@@ -2753,6 +2789,37 @@ function renderPlan() {
           <div className="settings-row"><span className="settings-icon">◎</span><div><strong>Sprache</strong><small>Deutsch</small></div></div>
         </div>
 
+        <div className="feature-panel sound-settings-panel">
+          <div className="sound-settings-copy">
+            <span className="settings-icon">♫</span>
+            <div>
+              <h2>App-Sounds</h2>
+              <p>Dezente Töne für Aktionen wie Speichern, Abhaken und Rezeptbewertungen.</p>
+            </div>
+          </div>
+          <div className="sound-settings-actions">
+            <label className="sound-toggle">
+              <input
+                type="checkbox"
+                checked={uiSoundsEnabled}
+                onChange={toggleUiSounds}
+              />
+              <span>{uiSoundsEnabled ? "Eingeschaltet" : "Ausgeschaltet"}</span>
+            </label>
+            <button
+              type="button"
+              className="sound-test-button"
+              disabled={!uiSoundsEnabled}
+              onClick={() => {
+                if (!uiSoundsEnabled) return;
+                playSound("success");
+              }}
+            >
+              Probehören
+            </button>
+          </div>
+        </div>
+
         <div className="feature-panel">
           <h2>Mein Geschmacksprofil</h2>
           <p>Bearbeite deine Lieblingsgerichte und deine Abneigungen.</p>
@@ -2814,7 +2881,10 @@ function renderPlan() {
   return (
     <div className="dashboard">
       <header className="topbar">
-        <button className="brand-button" onClick={() => setActivePage("home")}>
+        <button className="brand-button" onClick={() => {
+          setActivePage("home");
+          playSound("tap");
+        }}>
           <span className="brand-mark">🍊</span>
           <span>ESSEN<span>PLAN</span></span>
         </button>
@@ -2848,6 +2918,7 @@ function renderPlan() {
             key={item.id}
             className={`nav-item ${activePage === item.id ? "active" : ""}`}
             onClick={() => {
+              playSound("tap");
               if (item.id === "plan") {
                 startPlanning();
               } else {

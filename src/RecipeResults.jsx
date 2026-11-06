@@ -22,6 +22,7 @@ export default function RecipeResults({
   savedRecipes = [],
   recipeFeedback = { likes: [], dislikes: [] },
   onRecipeFeedback,
+  onPlaySound,
   singleRecipeSearch = false,
   onEdit,
   onRefresh,
@@ -106,6 +107,7 @@ export default function RecipeResults({
       setRecipeActionMessage(`${recipe.name} wurde zur Einkaufsliste hinzugefügt.`);
     } catch (error) {
       setRecipeActionError(error.message || "Das Rezept konnte nicht hinzugefügt werden.");
+      onPlaySound?.("error");
     } finally {
       setAddingRecipeId(null);
     }
@@ -119,6 +121,7 @@ export default function RecipeResults({
       await onToggleSavedRecipe?.(recipe.name);
     } catch (error) {
       setFavoriteActionError(error.message || "Das Rezept konnte nicht gespeichert werden.");
+      onPlaySound?.("error");
     } finally {
       setSavingFavoriteId(null);
     }
@@ -127,6 +130,7 @@ export default function RecipeResults({
   function openRecipe(recipe) {
     setServingCount(Math.max(1, Number(recipe.servings) || people));
     setSelectedRecipe(recipe);
+    onPlaySound?.("tap");
   }
 
   function getRecipeRating(recipe) {
@@ -143,6 +147,7 @@ export default function RecipeResults({
       await onRecipeFeedback?.(recipe.name, rating);
     } catch (error) {
       setFavoriteActionError(error.message || "Deine Bewertung konnte nicht gespeichert werden.");
+      onPlaySound?.("error");
     } finally {
       setSavingFeedbackId(null);
     }
@@ -172,7 +177,10 @@ export default function RecipeResults({
       <section className="page-content recipe-page">
         <button
           className="recipe-back"
-          onClick={() => setSelectedRecipe(null)}
+          onClick={() => {
+            setSelectedRecipe(null);
+            onPlaySound?.("tap");
+          }}
         >
           ← Zurück zu deinen Rezepten
         </button>
@@ -388,7 +396,10 @@ export default function RecipeResults({
       {!singleRecipeSearch && <div className="recipe-day-filter">
         <button
           className={activeDay === "Alle" ? "active" : ""}
-          onClick={() => setActiveDay("Alle")}
+          onClick={() => {
+            setActiveDay("Alle");
+            onPlaySound?.("tap");
+          }}
         >
           Alle Tage
         </button>
@@ -396,7 +407,10 @@ export default function RecipeResults({
           <button
             key={day}
             className={activeDay === day ? "active" : ""}
-            onClick={() => setActiveDay(day)}
+            onClick={() => {
+              setActiveDay(day);
+              onPlaySound?.("tap");
+            }}
           >
             {day}
           </button>

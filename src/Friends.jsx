@@ -115,7 +115,7 @@ function FoodSection({ title, items, emptyText }) {
   );
 }
 
-export default function Friends({ userId }) {
+export default function Friends({ userId, onPlaySound }) {
   const [search, setSearch] = useState("");
   const [results, setResults] = useState([]);
   const [friends, setFriends] = useState([]);
@@ -192,10 +192,12 @@ export default function Friends({ userId }) {
 
     if (error) {
       setError(error.message);
+      onPlaySound?.("error");
       return;
     }
 
     setResults(data || []);
+    onPlaySound?.("tap");
 
     if (!data?.length) {
       setMessage("Keine passenden Nutzer gefunden.");
@@ -215,6 +217,7 @@ export default function Friends({ userId }) {
 
     if (error) {
       setError(error.message);
+      onPlaySound?.("error");
       return;
     }
 
@@ -222,6 +225,7 @@ export default function Friends({ userId }) {
       current.filter((person) => person.user_id !== targetId)
     );
     setMessage("Freundschaftsanfrage wurde verschickt!");
+    onPlaySound?.("success");
     await loadData();
   }
 
@@ -244,11 +248,13 @@ export default function Friends({ userId }) {
 
     if (error) {
       setError("Freund konnte nicht entfernt werden: " + error.message);
+      onPlaySound?.("error");
       return;
     }
 
     setSelectedFriend(null);
     setMessage(`${friend.username} wurde aus deiner Freundesliste entfernt.`);
+    onPlaySound?.("tap");
     await loadData();
   }
 
@@ -266,6 +272,7 @@ export default function Friends({ userId }) {
 
     if (error) {
       setError(error.message);
+      onPlaySound?.("error");
       return;
     }
 
@@ -274,6 +281,7 @@ export default function Friends({ userId }) {
         ? "Ihr seid jetzt miteinander befreundet!"
         : "Die Anfrage wurde abgelehnt."
     );
+    onPlaySound?.(accept ? "success" : "tap");
 
     await loadData();
   }
