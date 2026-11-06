@@ -7,10 +7,18 @@ import LidlProducts from "./LidlProducts";
 import RecipeResults from "./RecipeResults";
 import RecipeGeneration from "./RecipeGeneration";
 import { ImageAttribution, RecipeImage } from "./RecipeImage";
+import Messages from "./Messages";
 import {
   getUiSoundsEnabled,
+  getUiSoundVolume,
+  getUiMusicVolume,
   playUiSound,
+  saveUiMusicVolume,
+  setUiMusicVolume,
+  setUiSoundVolume,
   setUiSoundsEnabled,
+  startUiMusic,
+  stopUiMusic,
 } from "./uiSounds";
 
 const navigation = [
@@ -18,6 +26,7 @@ const navigation = [
   { id: "friends", icon: "♧", label: "Freunde" },
   { id: "plan", icon: "▦", label: "Planen" },
   { id: "lists", icon: "☷", label: "Einkaufslisten" },
+  { id: "messages", icon: "✉", label: "Nachrichten" },
   { id: "settings", icon: "⚙", label: "Einstellungen" },
 ];
 
@@ -140,6 +149,13 @@ function App() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [uiSoundsEnabled, setUiSoundsEnabledState] = useState(getUiSoundsEnabled);
+  const [uiSoundVolume, setUiSoundVolumeState] = useState(getUiSoundVolume);
+  const [uiMusicVolume, setUiMusicVolumeState] = useState(getUiMusicVolume);
+  const [uiMusicEnabled, setUiMusicEnabledState] = useState(false);
+  const [musicNotice, setMusicNotice] = useState("");
+  const [avatarSaving, setAvatarSaving] = useState(false);
+  const [avatarError, setAvatarError] = useState("");
+  const [avatarNotice, setAvatarNotice] = useState("");
 
   const [newItem, setNewItem] = useState("");
   const [items, setItems] = useState([]);
@@ -204,6 +220,8 @@ const [avatarFile, setAvatarFile] = useState(null);
     }
   }, [planStep, activePage, planFinished]);
 
+  useEffect(() => () => stopUiMusic(), []);
+
   function updatePlan(key, value) {
     setPlanData((current) => ({
       ...current,
@@ -212,14 +230,111 @@ const [avatarFile, setAvatarFile] = useState(null);
   }
 
   function playSound(type) {
-    playUiSound(type, uiSoundsEnabled);
+    playUiSound(type, uiSoundsEnabled, uiSoundVolume);
   }
 
   function toggleUiSounds() {
     const enabled = !uiSoundsEnabled;
     setUiSoundsEnabledState(enabled);
     setUiSoundsEnabled(enabled);
-    if (enabled) playUiSound("success", true);
+    if (enabled) playUiSound("success", true, uiSoundVolume);
+  }
+
+  function handleDashboardClick(event) {
+    const button = event.target.closest("button, a, [role='button']");
+    if (!button || button.disabled || button.dataset.noSound === "true") return;
+    playSound("tap");
+  }
+
+  function toggleUiMusic() {
+    if (uiMusicEnabled) {
+      stopUiMusic();
+      setUiMusicEnabledState(false);
+      setMusicNotice("Hintergrundmusik ist ausgeschaltet.");
+      return;
+    }
+
+    if (startUiMusic(uiMusicVolume)) {
+      setUiMusicEnabledState(true);
+      setMusicNotice("Hintergrundmusik läuft. Du kannst sie jederzeit wieder ausschalten.");
+    } else {
+      setMusicNotice("Dein Browser unterstützt die optionale Hintergrundmusik leider nicht.");
+    }
+  }
+
+  function updateUiSoundVolume(value) {
+    const volume = setUiSoundVolume(value);
+    setUiSoundVolumeState(volume);
+  }
+
+  function updateUiMusicVolume(value) {
+    const volume = saveUiMusicVolume(value);
+    setUiMusicVolumeState(volume);
+    setUiMusicVolume(volume);
+  }
+
+  async function saveAvatarChange() {
+    if (!avatarFile || !user) return;
+    setAvatarError("");
+    setAvatarNotice("");
+
+    const imageExtensions = {
+      "image/jpeg": "jpg",
+      "image/png": "png",
+      "image/webp": "webp",
+    };
+    if (!imageExtensions[avatarFile.type]) {
+      setAvatarError("Bitte wähle ein JPEG-, PNG- oder WebP-Bild aus.");
+      return;
+    }
+    if (avatarFile.size > 5 * 1024 * 1024) {
+      setAvatarError("Das Profilbild darf höchstens 5 MB groß sein.");
+      return;
+    }
+
+    setAvatarSaving(true);
+    const extension = imageExtensions[avatarFile.type];
+    const newPath = `${user.id}/avatar-${Date.now()}.${extension}`;
+
+    try {
+      const { error: uploadError } = await supabase.storage
+        .from("profile-images")
+        .upload(newPath, avatarFile, {
+          upsert: false,
+          contentType: avatarFile.type,
+        });
+      if (uploadError) throw uploadError;
+
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .update({ avatar_path: newPath })
+        .eq("id", user.id);
+      if (profileError) {
+        const { error: cleanupError } = await supabase.storage
+          .from("profile-images")
+          .remove([newPath]);
+        if (cleanupError) {
+          console.error("Nicht verwendetes Profilbild konnte nicht entfernt werden:", cleanupError);
+        }
+        throw profileError;
+      }
+
+      const { data: imageData, error: signedUrlError } = await supabase.storage
+        .from("profile-images")
+        .createSignedUrl(newPath, 3600);
+      setAvatarPath(newPath);
+      setAvatarUrl(imageData?.signedUrl || null);
+      setAvatarFile(null);
+      if (signedUrlError) {
+        setAvatarNotice("Profilbild gespeichert. Die Vorschau wird nach erneutem Laden angezeigt.");
+      } else {
+        setAvatarNotice("Dein Profilbild wurde aktualisiert.");
+      }
+    } catch (saveError) {
+      setAvatarError(`Profilbild konnte nicht gespeichert werden: ${saveError.message}`);
+    } finally {
+      setAvatarSaving(false);
+    }
   }
 
   function togglePlanOption(key, value) {
@@ -685,6 +800,8 @@ setShowTasteProfile(
     if (error) {
       setError("Abmelden fehlgeschlagen: " + error.message);
     } else {
+      stopUiMusic();
+      setUiMusicEnabledState(false);
       setActivePage("home");
       setMode("login");
       setPassword("");
@@ -1768,6 +1885,10 @@ setShowTasteProfile(
   return <Friends userId={user.id} onPlaySound={playSound} />;
 }
 
+  function renderMessages() {
+    return <Messages userId={user.id} />;
+  }
+
     
 function renderPlan() {
   const days = [
@@ -2783,6 +2904,43 @@ function renderPlan() {
 </div>
           <div><strong>{displayName}</strong><span>{user.email}</span></div>
         </div>
+        <div className="feature-panel avatar-settings-panel">
+          <div className="sound-settings-copy">
+            <span className="settings-icon">📷</span>
+            <div>
+              <h2>Profilbild</h2>
+              <p>Wähle ein neues Bild für dein Profil. Deine Geschmackseinstellungen bleiben unverändert.</p>
+            </div>
+          </div>
+          <div className="avatar-settings-actions">
+            <input
+              id="settings-avatar-file"
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              onChange={(event) => {
+                setAvatarFile(event.target.files?.[0] || null);
+                setAvatarError("");
+                setAvatarNotice("");
+              }}
+            />
+            <label htmlFor="settings-avatar-file" className="sound-test-button">
+              Bild auswählen
+            </label>
+            {avatarFile && (
+              <span className="avatar-selected-name">{avatarFile.name}</span>
+            )}
+            <button
+              type="button"
+              className="primary-button"
+              disabled={!avatarFile || avatarSaving}
+              onClick={saveAvatarChange}
+            >
+              {avatarSaving ? "Wird gespeichert ..." : "Profilbild speichern"}
+            </button>
+          </div>
+          {avatarError && <p className="avatar-feedback error" role="alert">{avatarError}</p>}
+          {avatarNotice && <p className="avatar-feedback success" role="status">{avatarNotice}</p>}
+        </div>
         <div className="settings-list">
           <div className="settings-row"><span className="settings-icon">♙</span><div><strong>Benutzername</strong><small>{displayName}</small></div></div>
           <div className="settings-row"><span className="settings-icon">✉</span><div><strong>E-Mail-Adresse</strong><small>{user.email}</small></div></div>
@@ -2818,6 +2976,47 @@ function renderPlan() {
               Probehören
             </button>
           </div>
+          <label className="sound-volume-control">
+            <span>Lautstärke</span>
+            <input
+              type="range"
+              min="0.1"
+              max="1"
+              step="0.05"
+              value={uiSoundVolume}
+              onChange={(event) => updateUiSoundVolume(event.target.value)}
+              aria-label="Lautstärke der App-Töne"
+            />
+            <small>{Math.round(uiSoundVolume * 100)}%</small>
+          </label>
+        </div>
+
+        <div className="feature-panel music-settings-panel">
+          <div className="sound-settings-copy">
+            <span className="settings-icon">♫</span>
+            <div>
+              <h2>Hintergrundmusik</h2>
+              <p>Eine ruhige, selbst erzeugte Melodie. Sie startet nur, wenn du sie einschaltest.</p>
+            </div>
+          </div>
+          <div className="music-settings-actions">
+            <button type="button" className="sound-test-button" onClick={toggleUiMusic}>
+              {uiMusicEnabled ? "Musik ausschalten" : "Musik einschalten"}
+            </button>
+            <label className="sound-volume-control">
+              <span>Musiklautstärke</span>
+              <input
+                type="range"
+                min="0.02"
+                max="0.35"
+                step="0.01"
+                value={uiMusicVolume}
+                onChange={(event) => updateUiMusicVolume(event.target.value)}
+                aria-label="Lautstärke der Hintergrundmusik"
+              />
+            </label>
+          </div>
+          {musicNotice && <p className="avatar-feedback" role="status">{musicNotice}</p>}
         </div>
 
         <div className="feature-panel">
@@ -2873,17 +3072,17 @@ function renderPlan() {
   const pageContent = {
     home: renderHome,
     friends: renderFriends,
+    messages: renderMessages,
     plan: renderPlan,
     lists: renderLists,
     settings: renderSettings,
   };
 
   return (
-    <div className="dashboard">
+    <div className="dashboard" onClickCapture={handleDashboardClick}>
       <header className="topbar">
         <button className="brand-button" onClick={() => {
           setActivePage("home");
-          playSound("tap");
         }}>
           <span className="brand-mark">🍊</span>
           <span>ESSEN<span>PLAN</span></span>
@@ -2918,7 +3117,6 @@ function renderPlan() {
             key={item.id}
             className={`nav-item ${activePage === item.id ? "active" : ""}`}
             onClick={() => {
-              playSound("tap");
               if (item.id === "plan") {
                 startPlanning();
               } else {
